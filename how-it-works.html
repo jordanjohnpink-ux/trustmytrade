@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works — TrustMyTrade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+    <style>
+
+        /* ── Hero ─────────────────────────────────────────────────────────── */
+        .hiw-hero {
+            background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%);
+            padding: 5rem 1.5rem 5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hiw-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 70%, rgba(201,168,76,0.18) 0%, transparent 62%);
+            pointer-events: none;
+        }
+        /* Subtle PCB grid in hero background */
+        .hiw-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        .hiw-hero-inner { position: relative; z-index: 1; }
+        .hiw-gold-bar { width: 44px; height: 2px; background: var(--gold); border-radius: 2px; margin: 0 auto 1.4rem; }
+        .hiw-hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.2rem, 5vw, 3.4rem);
+            color: #fff;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+        .hiw-hero p {
+            color: rgba(255,255,255,0.6);
+            font-size: 1.05rem;
+            max-width: 520px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        /* ── Circuit section ──────────────────────────────────────────────── */
+        .circuit-section {
+            padding: 6rem 1.5rem 6rem;
+            background: var(--off-white);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Faint PCB dot grid in background */
+        .circuit-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(201,168,76,0.12) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        .circuit-wrap {
+            max-width: 960px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* The vertical gold spine */
+        .circuit-spine {
+            position: absolute;
+            left: 50%;
+            top: 30px;
+            bottom: 30px;
+            width: 2px;
+            background: linear-gradient(to bottom,
+                transparent 0%,
+                var(--gold) 4%,
+                var(--gold) 96%,
+                transparent 100%);
+            transform: translateX(-1px);
+            z-index: 0;
+        }
+        /* Small tick marks along the spine between steps */
+        .circuit-spine::before,
+        .circuit-spine::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            width: 12px;
+            height: 3px;
+            background: rgba(201,168,76,0.35);
+            border-radius: 1px;
+            transform: translateX(-50%);
+        }
+        .circuit-spine::before { top: 30%; }
+        .circuit-spine::after  { top: 65%; }
+
+        /* ── Individual step row ─────────────────────────────────────────── */
+        .circuit-step {
+            display: grid;
+            grid-template-columns: 1fr 100px 1fr;
+            align-items: center;
+            margin-bottom: 6rem;
+            position: relative;
+            z-index: 1;
+        }
+        .circuit-step:last-child { margin-bottom: 0; }
+
+        /* ── Node circle ─────────────────────────────────────────────────── */
+        .circuit-node-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .circuit-node {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: var(--navy);
+            color: var(--gold);
+            font-family: 'Playfair Display', serif;
+            font-size: 1.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 3;
+            box-shadow:
+                0 0 0 6px rgba(201,168,76,0.1),
+                0 0 0 12px rgba(201,168,76,0.04),
+                0 0 30px rgba(201,168,76,0.3);
+            flex-shrink: 0;
+        }
+        /* Small square pad below the node number — circuit detail */
+        .circuit-node::after {
+            content: '';
+            position: absolute;
+            bottom: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: var(--gold);
+            border-radius: 1px;
+            opacity: 0.6;
+        }
+
+        /* ── Card column ─────────────────────────────────────────────────── */
+        .circuit-col-left  { position: relative; padding-right: 2.5rem; }
+        .circuit-col-right { position: relative; padding-left:  2.5rem; }
+        .circuit-col-empty { /* empty placeholder */ }
+
+        /* Connector line: left card → node */
+        .circuit-col-left.has-card::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 2.5rem;
+            height: 2px;
+            background: var(--gold);
+            transform: translateY(-1px);
+        }
+        /* Small square pad at connector end (circuit junction) */
+        .circuit-col-left.has-card::before {
+            content: '';
+            position: absolute;
+            right: 2.5rem;
+            top: 50%;
+            width: 7px;
+            height: 7px;
+            background: var(--gold);
+            border-radius: 1px;
+            transform: translate(50%, -50%);
+            z-index: 2;
+        }
+
+        /* Connector line: node → right card */
+        .circuit-col-right.has-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 2.5rem;
+            height: 2px;
+            background: var(--gold);
+            transform: translateY(-1px);
+        }
+        .circuit-col-right.has-card::after {
+            content: '';
+            position: absolute;
+            left: 2.5rem;
+            top: 50%;
+            width: 7px;
+            height: 7px;
+            background: var(--gold);
+            border-radius: 1px;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        /* ── Card ───────────────────────────────────────────────────────── */
+        .circuit-card {
+            background: #fff;
+            border: 1.5px solid rgba(201,168,76,0.22);
+            border-radius: 18px;
+            padding: 2rem 2rem 1.75rem;
+            position: relative;
+            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+        }
+        .circuit-card:hover {
+            border-color: var(--gold);
+            box-shadow: 0 12px 40px rgba(201,168,76,0.14), 0 2px 8px rgba(0,0,0,0.06);
+            transform: translateY(-3px);
+        }
+        /* Thin gold top-edge accent */
+        .circuit-card::before {
+            content: '';
+            position: absolute;
+            top: -1.5px;
+            left: 2rem;
+            right: 2rem;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            border-radius: 2px;
+        }
+        .circuit-card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.04));
+            border: 1px solid rgba(201,168,76,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+        .circuit-card-step {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--gold);
+            margin-bottom: 0.35rem;
+        }
+        .circuit-card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.35rem;
+            color: var(--navy);
+            margin-bottom: 0.65rem;
+            line-height: 1.3;
+        }
+        .circuit-card-body {
+            font-size: 0.875rem;
+            color: var(--text-mid);
+            line-height: 1.7;
+        }
+
+        /* Plan mini-badges (step 2) */
+        .plan-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap: 0.5rem;
+            margin-top: 1.1rem;
+        }
+        .plan-mini {
+            background: var(--off-white);
+            border: 1px solid rgba(201,168,76,0.2);
+            border-radius: 8px;
+            padding: 0.55rem 0.4rem;
+            text-align: center;
+        }
+        .plan-mini-name {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.15rem;
+        }
+        .plan-mini-boost {
+            font-family: 'Playfair Display', serif;
+            font-size: 1rem;
+            color: var(--navy);
+            font-weight: 700;
+        }
+        .plan-mini.highlight {
+            background: var(--navy);
+            border-color: var(--gold);
+        }
+        .plan-mini.highlight .plan-mini-name { color: rgba(255,255,255,0.5); }
+        .plan-mini.highlight .plan-mini-boost { color: var(--gold); }
+
+        /* Rank formula visual (step 3) */
+        .rank-formula {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 1.1rem;
+            flex-wrap: wrap;
+        }
+        .rank-formula-pill {
+            background: var(--navy);
+            color: #fff;
+            border-radius: 6px;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .rank-formula-op {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .rank-formula-result {
+            background: linear-gradient(135deg, var(--gold), #b8922e);
+            color: var(--navy);
+            border-radius: 6px;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        /* Flywheel (step 4) */
+        .flywheel {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .flywheel-item {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--navy);
+            background: rgba(201,168,76,0.1);
+            border: 1px solid rgba(201,168,76,0.25);
+            border-radius: 5px;
+            padding: 0.25rem 0.55rem;
+        }
+        .flywheel-arrow { color: var(--gold); font-size: 0.85rem; font-weight: 700; }
+
+        /* ── CTA ─────────────────────────────────────────────────────────── */
+        .hiw-cta {
+            background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%);
+            padding: 5rem 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hiw-cta::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.18) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .hiw-cta::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        .hiw-cta-inner { position: relative; z-index: 1; }
+        .hiw-cta h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            color: #fff;
+            margin-bottom: 0.75rem;
+        }
+        .hiw-cta p {
+            color: rgba(255,255,255,0.6);
+            font-size: 1rem;
+            max-width: 440px;
+            margin: 0 auto 2rem;
+        }
+
+        /* ── Mobile: single column spine on left ────────────────────────── */
+        @media (max-width: 700px) {
+            .circuit-spine { left: 28px; transform: none; }
+            .circuit-step {
+                grid-template-columns: 60px 1fr;
+                grid-template-rows: auto;
+                margin-bottom: 4rem;
+            }
+            .circuit-node-col { order: 1; }
+            .circuit-col-left,
+            .circuit-col-right { order: 2; padding-left: 1.5rem; padding-right: 0; }
+            .circuit-col-empty { display: none; }
+
+            /* override connector positions for mobile */
+            .circuit-col-left.has-card::after,
+            .circuit-col-right.has-card::before {
+                left: -1.5rem; right: auto; width: 1.5rem; top: 50%;
+            }
+            .circuit-col-left.has-card::before,
+            .circuit-col-right.has-card::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Trust<span>MyTrade</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works" style="color:var(--gold)">How It Works</a>
+            <a href="/dashboard">My Dashboard</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────── -->
+<section class="hiw-hero">
+    <div class="hiw-hero-inner">
+        <div class="hiw-gold-bar"></div>
+        <h1>How It Works</h1>
+        <p>Four steps from sign-up to a full pipeline of new customers — powered by real reviews and a ranking system that rewards reputation.</p>
+    </div>
+</section>
+
+<!-- ── Circuit Steps ──────────────────────────────────────────────────── -->
+<section class="circuit-section">
+    <div class="circuit-wrap">
+
+        <!-- Vertical spine -->
+        <div class="circuit-spine"></div>
+
+        <!-- ── Step 1 · LEFT ─────────────────────────────────────────── -->
+        <div class="circuit-step">
+            <div class="circuit-col-left has-card">
+                <div class="circuit-card">
+                    <div class="circuit-card-icon">📋</div>
+                    <div class="circuit-card-step">Step 01</div>
+                    <div class="circuit-card-title">Sign Up &amp; Get Listed</div>
+                    <div class="circuit-card-body">
+                        Apply to list your business on <span data-brand>TrustMyTrade</span>. We manually vet every application before any listing goes live — so every customer browsing the directory knows they're looking at real, verified tradespeople. No unvetted listings, ever. Your approval comes within 1–2 business days.
+                    </div>
+                </div>
+            </div>
+            <div class="circuit-node-col">
+                <div class="circuit-node">1</div>
+            </div>
+            <div class="circuit-col-empty"></div>
+        </div>
+
+        <!-- ── Step 2 · RIGHT ────────────────────────────────────────── -->
+        <div class="circuit-step">
+            <div class="circuit-col-empty"></div>
+            <div class="circuit-node-col">
+                <div class="circuit-node">2</div>
+            </div>
+            <div class="circuit-col-right has-card">
+                <div class="circuit-card">
+                    <div class="circuit-card-icon">🏆</div>
+                    <div class="circuit-card-step">Step 02</div>
+                    <div class="circuit-card-title">Pick Your Plan</div>
+                    <div class="circuit-card-body">
+                        Choose the tier that matches your ambition. Every plan includes a verified listing and review collection — but your plan directly multiplies your ranking score, giving higher tiers a permanent advantage in search results.
+                        <div class="plan-mini-grid">
+                            <div class="plan-mini">
+                                <div class="plan-mini-name">Starter</div>
+                                <div class="plan-mini-boost">×1.0</div>
+                            </div>
+                            <div class="plan-mini">
+                                <div class="plan-mini-name">Pro</div>
+                                <div class="plan-mini-boost">×1.1</div>
+                            </div>
+                            <div class="plan-mini highlight">
+                                <div class="plan-mini-name">Featured</div>
+                                <div class="plan-mini-boost">×1.3</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Step 3 · LEFT ─────────────────────────────────────────── -->
+        <div class="circuit-step">
+            <div class="circuit-col-left has-card">
+                <div class="circuit-card">
+                    <div class="circuit-card-icon">⭐</div>
+                    <div class="circuit-card-step">Step 03</div>
+                    <div class="circuit-card-title">Collect Reviews &amp; Climb the Rankings</div>
+                    <div class="circuit-card-body">
+                        Share your profile link with every satisfied customer. Each approved review increases both your average rating and your review count — and our algorithm multiplies them together so consistent quality beats a single lucky five-star.
+                        <div class="rank-formula">
+                            <div class="rank-formula-pill">Rating</div>
+                            <div class="rank-formula-op">×</div>
+                            <div class="rank-formula-pill">log(Reviews)</div>
+                            <div class="rank-formula-op">×</div>
+                            <div class="rank-formula-pill">Plan boost</div>
+                            <div class="rank-formula-op">=</div>
+                            <div class="rank-formula-result">Your rank</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="circuit-node-col">
+                <div class="circuit-node">3</div>
+            </div>
+            <div class="circuit-col-empty"></div>
+        </div>
+
+        <!-- ── Step 4 · RIGHT ────────────────────────────────────────── -->
+        <div class="circuit-step">
+            <div class="circuit-col-empty"></div>
+            <div class="circuit-node-col">
+                <div class="circuit-node">4</div>
+            </div>
+            <div class="circuit-col-right has-card">
+                <div class="circuit-card">
+                    <div class="circuit-card-icon">🚀</div>
+                    <div class="circuit-card-step">Step 04</div>
+                    <div class="circuit-card-title">Win New Customers &amp; Hold Your Position</div>
+                    <div class="circuit-card-body">
+                        A higher ranking brings more enquiries. More customers means more reviews. More reviews pushes you higher. The flywheel compounds — and your Trusted Badge and website widget keep building trust even off the directory.
+                        <div class="flywheel">
+                            <div class="flywheel-item">Top ranking</div>
+                            <div class="flywheel-arrow">→</div>
+                            <div class="flywheel-item">More enquiries</div>
+                            <div class="flywheel-arrow">→</div>
+                            <div class="flywheel-item">More reviews</div>
+                            <div class="flywheel-arrow">→</div>
+                            <div class="flywheel-item">Higher rank</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /circuit-wrap -->
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────────────────── -->
+<section class="hiw-cta">
+    <div class="hiw-cta-inner">
+        <div class="hiw-gold-bar"></div>
+        <h2>Ready to Get Started?</h2>
+        <p>Join the tradespeople already growing their business through verified reputation.</p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+            <a href="/signup" class="btn btn-primary" style="padding:0.85rem 2.2rem;font-size:1rem">List Your Business →</a>
+            <a href="/directory" class="btn btn-outline" style="padding:0.85rem 2.2rem;font-size:1rem;border-color:rgba(255,255,255,0.25);color:#fff">Browse Directory</a>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Trust<span>MyTrade</span></div>
+        <div class="footer-links">
+            <a href="/report?type=issue">Report an Issue</a>
+            <a href="/report?type=trader">Report a Trader</a>
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">For Businesses</a>
+            <a href="/how-it-works">How It Works</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>TrustMyTrade</span>. All rights reserved.</div>
+    </div>
+</footer>
+
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

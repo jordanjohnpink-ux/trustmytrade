@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directory — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+    <style>
+        .results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; flex-wrap:wrap; gap:0.5rem; }
+        .results-count { font-size:0.85rem; color:var(--text-muted); }
+        .pagination { display:flex; justify-content:center; gap:0.4rem; margin-top:2rem; }
+        .page-btn { width:36px; height:36px; border-radius:6px; border:1.5px solid var(--border); background:#fff; cursor:pointer; font-size:0.85rem; font-family:'Inter',sans-serif; display:flex;align-items:center;justify-content:center; transition:all 0.15s; }
+        .page-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+        .page-btn:hover:not(.active) { border-color:var(--navy); color:var(--navy); }
+        .featured-tag { background: var(--gold); color: var(--navy); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 0.18rem 0.55rem; border-radius: 3px; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory" style="color:#fff">Directory</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+            <a href="/dashboard">My Dashboard</a>
+        </div>
+    </div>
+</nav>
+
+<div class="dir-hero">
+    <div class="dir-hero-inner">
+        <p class="section-label" style="margin-bottom:0.5rem">Verified Local Businesses</p>
+        <h1 style="margin-bottom:0.35rem">Business Directory</h1>
+        <p class="dir-hero-sub">Every business independently vetted before listing.</p>
+        <div class="search-inline">
+            <input id="dQ" type="text" placeholder="Search businesses…" style="flex:1;min-width:180px">
+            <select id="dCat" style="min-width:160px">
+                <option value="">All Categories</option>
+            </select>
+            <input id="dNear" type="text" placeholder="Postcode or town" style="min-width:140px">
+            <select id="dRadius" style="min-width:110px">
+                <option value="5">Within 5 mi</option>
+                <option value="10">Within 10 mi</option>
+                <option value="20" selected>Within 20 mi</option>
+                <option value="50">Within 50 mi</option>
+            </select>
+            <select id="dSort" style="min-width:130px">
+                <option value="rank">Top Ranked</option>
+                <option value="nearest">Nearest</option>
+                <option value="reviews">Most Reviews</option>
+                <option value="rating">Highest Rated</option>
+                <option value="newest">Newest</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadResults(1)">Search</button>
+        </div>
+    </div>
+</div>
+
+<div class="section-sm" style="background:#fff">
+    <div class="container">
+        <div class="results-header">
+            <div class="results-count" id="resultsCount">Loading…</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;font-size:0.8rem;color:var(--text-muted)">
+                <span>View:</span>
+                <button onclick="setView('grid')" id="vGrid" class="btn btn-outline btn-sm">Grid</button>
+                <button onclick="setView('list')" id="vList" class="btn btn-outline btn-sm">List</button>
+            </div>
+        </div>
+        <div id="resultsGrid" class="grid-3"></div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links" style="margin-bottom:0.4rem"><a href="/report?type=issue">Report an Issue</a> · <a href="/report?type=trader">Report a Trader</a></div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span></div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+let currentView = 'grid';
+let currentPage = 1;
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function stars(r, count) {
+    const filled = Math.round(r||0);
+    return `<span class="stars stars-sm">${'★'.repeat(filled)+'☆'.repeat(5-filled)}</span> <span class="rating-num">${(r||0).toFixed(1)}</span> <span class="rating-count">(${count||0})</span>`;
+}
+
+function setView(v) {
+    currentView = v;
+    document.getElementById('vGrid').className = 'btn btn-sm ' + (v==='grid'?'btn-navy':'btn-outline');
+    document.getElementById('vList').className = 'btn btn-sm ' + (v==='list'?'btn-navy':'btn-outline');
+    loadResults(currentPage);
+}
+
+function bizCardGrid(b) {
+    const initials = (b.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<a href="/business/${esc(b.slug)}" style="text-decoration:none;color:inherit">
+        <div class="biz-card">
+            <div class="biz-card-cover">
+                ${b.cover_path?`<img src="/${esc(b.cover_path)}" alt="">`:`<div class="biz-card-cover-placeholder"></div>`}
+                ${b.plan==='featured'?`<span class="featured-tag" style="position:absolute;top:8px;right:8px">Featured</span>`:''}
+            </div>
+            <div class="biz-card-body">
+                <div class="biz-card-logo">${b.logo_path?`<img src="/${esc(b.logo_path)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px" alt="">`:`<span>${initials}</span>`}</div>
+                <div class="biz-card-name">${esc(b.name)}</div>
+                <div class="biz-card-meta">${esc(b.category)}${b.area?' · '+esc(b.area):''}${b.distance_miles!=null?' · '+b.distance_miles.toFixed(1)+' mi':''}</div>
+                <div class="biz-card-desc">${esc((b.short_desc||b.description||'').slice(0,90))}…</div>
+                <div class="biz-card-foot">
+                    <div class="rating-wrap">${stars(b.avg_rating, b.review_count)}</div>
+                    ${b.verified_at?`<span class="badge badge-verified">✓ Verified</span>`:''}
+                </div>
+            </div>
+        </div>
+    </a>`;
+}
+
+function bizCardList(b) {
+    const initials = (b.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<a href="/business/${esc(b.slug)}" style="text-decoration:none;color:inherit">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow=''">
+            <div style="width:52px;height:52px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;overflow:hidden">
+                ${b.logo_path?`<img src="/${esc(b.logo_path)}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<span>${initials}</span>`}
+            </div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                    <span style="font-weight:700;font-size:0.95rem">${esc(b.name)}</span>
+                    ${b.plan==='featured'?`<span class="featured-tag">Featured</span>`:''}
+                    ${b.verified_at?`<span class="badge badge-verified">✓ Verified</span>`:''}
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-muted);margin:0.1rem 0">${esc(b.category)}${b.area?' · '+esc(b.area):''}${b.distance_miles!=null?' · '+b.distance_miles.toFixed(1)+' mi':''}</div>
+                <div style="font-size:0.83rem;color:var(--text-mid)">${esc((b.short_desc||b.description||'').slice(0,120))}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+                <div class="rating-wrap" style="justify-content:flex-end">${stars(b.avg_rating, b.review_count)}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">${b.review_count} review${b.review_count!==1?'s':''}</div>
+            </div>
+        </div>
+    </a>`;
+}
+
+async function loadResults(page = 1) {
+    currentPage = page;
+    const q      = document.getElementById('dQ').value.trim();
+    const cat    = document.getElementById('dCat').value;
+    const near   = document.getElementById('dNear').value.trim();
+    const radius = document.getElementById('dRadius').value;
+    const sort   = document.getElementById('dSort').value;
+    const params = new URLSearchParams({ sort, page });
+    if (q)    params.set('q', q);
+    if (cat)  params.set('category', cat);
+    if (near) { params.set('near', near); params.set('radius', radius); }
+    // Update URL
+    history.replaceState(null, '', '/directory?' + params.toString());
+
+    const grid = document.getElementById('resultsGrid');
+    grid.innerHTML = '<div class="loading" style="grid-column:1/-1">Loading…</div>';
+    try {
+        const { businesses, total, pages, near_not_found } = await fetch('/api/businesses?' + params).then(r=>r.json());
+        document.getElementById('resultsCount').textContent = near_not_found
+            ? `Couldn't recognise that postcode/town — showing unfiltered results`
+            : `${total} business${total!==1?'es':''} found`;
+        if (!businesses.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No businesses found. Try a different search or a wider radius.</div>'; return; }
+        grid.className = currentView === 'grid' ? 'grid-3' : '';
+        grid.innerHTML = businesses.map(b => currentView==='grid' ? bizCardGrid(b) : bizCardList(b)).join('');
+        // Pagination
+        const pEl = document.getElementById('pagination');
+        pEl.innerHTML = '';
+        for (let p = 1; p <= pages; p++) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn' + (p===page?' active':'');
+            btn.textContent = p;
+            btn.onclick = () => loadResults(p);
+            pEl.appendChild(btn);
+        }
+    } catch(e) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Error loading results.</div>'; }
+}
+
+async function init() {
+    // Populate category dropdown
+    const cats = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
+    const catSel = document.getElementById('dCat');
+    cats.forEach(c => catSel.insertAdjacentHTML('beforeend', `<option value="${esc(c)}">${c}</option>`));
+
+    // Read URL params
+    const p = new URLSearchParams(location.search);
+    if (p.get('q'))        document.getElementById('dQ').value   = p.get('q');
+    if (p.get('category')) document.getElementById('dCat').value = p.get('category');
+    if (p.get('near'))     document.getElementById('dNear').value = p.get('near');
+    if (p.get('radius'))   document.getElementById('dRadius').value = p.get('radius');
+    if (p.get('sort'))     document.getElementById('dSort').value = p.get('sort');
+
+    // Arriving with a category filter gets that category's SEO title/description applied
+    if (p.get('category')) {
+        fetch('/api/public-categories?name=' + encodeURIComponent(p.get('category')))
+            .then(r => r.json()).then(rows => {
+                const c = rows[0];
+                if (!c) return;
+                if (c.seo_title) document.title = c.seo_title;
+                if (c.seo_description) {
+                    let meta = document.querySelector('meta[name="description"]');
+                    if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.appendChild(meta); }
+                    meta.content = c.seo_description;
+                }
+            }).catch(()=>{});
+    }
+
+    loadResults(parseInt(p.get('page'))||1);
+    setView('grid');
+}
+
+// Search on enter
+document.getElementById('dQ').addEventListener('keydown', e => { if(e.key==='Enter') loadResults(1); });
+document.getElementById('dNear').addEventListener('keydown', e => { if(e.key==='Enter') loadResults(1); });
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "monasite",
+  "version": "1.0.0",
+  "description": "Monasite — Trusted Local Business Directory",
+  "main": "server.js",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed:categories": "node scripts/seed-categories.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "multer": "^2.1.1",
+    "nodemailer": "^6.9.8",
+    "stripe": "^22.1.1"
+  }
+}

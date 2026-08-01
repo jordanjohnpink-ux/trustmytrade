@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen" style="min-height:100vh;background:var(--navy);display:flex;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;padding:2.5rem 2rem;width:90%;max-width:360px;text-align:center">
+        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--navy);margin-bottom:1.5rem"><span data-brand>Monasite</span> Admin</div>
+        <div class="form-group" style="text-align:left"><label>Admin Password</label><input id="loginPass" type="password" placeholder="Password"></div>
+        <div id="loginErr" style="color:var(--red);font-size:0.8rem;margin-bottom:0.75rem;display:none">Incorrect password</div>
+        <button class="btn btn-navy btn-block" onclick="doLogin()">Sign In</button>
+    </div>
+</div>
+
+<!-- Admin shell -->
+<div id="adminShell" class="admin-shell" style="display:none">
+    <div class="admin-sidebar">
+        <div class="admin-sidebar-brand">Mona<span>site</span> <span style="font-size:0.65rem;font-family:'Inter',sans-serif;color:rgba(255,255,255,0.35);display:block;margin-top:0.2rem;font-weight:400">Admin Panel</span></div>
+        <button class="admin-nav-item active" id="anav-dash"       onclick="showTab('dash')">📊 Dashboard</button>
+        <button class="admin-nav-item"         id="anav-pending"    onclick="showTab('pending')">⏳ Pending Vetting</button>
+        <button class="admin-nav-item"         id="anav-businesses" onclick="showTab('businesses')">🏢 All Businesses</button>
+        <button class="admin-nav-item"         id="anav-reviews"    onclick="showTab('reviews')">⭐ Review Queue</button>
+        <button class="admin-nav-item"         id="anav-discounts"  onclick="showTab('discounts')">🏷️ Discounts</button>
+        <button class="admin-nav-item"         id="anav-categories" onclick="showTab('categories')">📂 Categories</button>
+        <button class="admin-nav-item"         id="anav-reports"    onclick="showTab('reports')">🚩 Reports</button>
+        <button class="admin-nav-item"         id="anav-settings"   onclick="showTab('settings')">⚙️ Settings</button>
+        <div style="margin-top:auto;padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,0.08)">
+            <button onclick="doLogout()" style="font-size:0.78rem;color:rgba(255,255,255,0.35);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif">Sign Out</button>
+        </div>
+    </div>
+    <div class="admin-body" id="adminBody"><div class="loading">Loading…</div></div>
+</div>
+
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+const ADMIN_TOKEN_KEY = 'monasiteAdminToken';
+let atoken = localStorage.getItem(ADMIN_TOKEN_KEY);
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(s) { if(!s)return'—'; try{return new Date(s.replace(' ','T')+'Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch{return s;} }
+function toast(msg, err) {
+    const el = document.getElementById('toastEl');
+    el.textContent = msg; el.className = 'show' + (err?' err':'');
+    setTimeout(()=>el.className='', 2800);
+}
+
+async function aapi(path, method, body) {
+    const r = await fetch(path, {
+        method: method||'GET',
+        headers: { 'Authorization': 'Bearer '+atoken, 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    if (r.status === 401) { doLogout(); throw new Error('Session expired'); }
+    let d; try { d = await r.json(); } catch { d = {}; }
+    if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
+    return d;
+}
+
+async function doLogin() {
+    const pass = document.getElementById('loginPass').value;
+    const d = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:pass}) });
+    const data = await d.json();
+    if (!d.ok) { document.getElementById('loginErr').style.display=''; return; }
+    atoken = data.token;
+    localStorage.setItem(ADMIN_TOKEN_KEY, atoken);
+    showAdmin();
+}
+function doLogout() {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    atoken = null;
+    document.getElementById('adminShell').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+function showAdmin() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminShell').style.display = 'flex';
+    showTab('dash');
+}
+function showTab(tab) {
+    document.querySelectorAll('.admin-nav-item').forEach(el=>el.classList.remove('active'));
+    const nav = document.getElementById('anav-'+tab);
+    if (nav) nav.classList.add('active');
+    const loaders = { dash: loadDash, pending: loadPending, businesses: loadBusinesses, reviews: loadReviews, discounts: loadDiscounts, categories: loadCategories, reports: loadReports, settings: loadSettings };
+    (loaders[tab]||loadDash)().catch(e => {
+        document.getElementById('adminBody').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`;
+    });
+}
+
+async function loadDash() {
+    const s = await aapi('/api/admin/stats');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Dashboard</h2></div>
+        <div class="stat-grid">
+            <div class="stat-card"><div class="stat-val">${s.active}</div><div class="stat-lbl">Live Businesses</div></div>
+            <div class="stat-card" style="${s.pending?'border-color:#fde047':''}""><div class="stat-val" style="${s.pending?'color:#d97706':''}">${s.pending}</div><div class="stat-lbl">Awaiting Vetting</div></div>
+            <div class="stat-card" style="${s.pending_reviews?'border-color:#fde047':''}""><div class="stat-val" style="${s.pending_reviews?'color:#d97706':''}">${s.pending_reviews}</div><div class="stat-lbl">Pending Reviews</div></div>
+            <div class="stat-card"><div class="stat-val">${s.total_reviews}</div><div class="stat-lbl">Published Reviews</div></div>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-card"><div class="stat-val">${s.starter_count}</div><div class="stat-lbl">Starter Plan</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:#7c3aed">${s.pro_count}</div><div class="stat-lbl">Pro Plan</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:var(--gold)">${s.featured_count}</div><div class="stat-lbl">Featured Plan</div></div>
+            <div class="stat-card"><div class="stat-val">${s.total_businesses}</div><div class="stat-lbl">Total Businesses</div></div>
+        </div>
+        <div id="revenuePanel" style="margin-bottom:1.2rem"></div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            ${s.pending?`<button class="btn btn-primary" onclick="showTab('pending')">⏳ Review ${s.pending} Pending Business${s.pending!==1?'es':''} →</button>`:''}
+            ${s.pending_reviews?`<button class="btn btn-navy" onclick="showTab('reviews')">⭐ Moderate ${s.pending_reviews} Review${s.pending_reviews!==1?'s':''} →</button>`:''}
+            ${s.open_reports?`<button class="btn btn-outline" onclick="showTab('reports')">🚩 ${s.open_reports} Open Report${s.open_reports!==1?'s':''} →</button>`:''}
+        </div>`;
+    loadRevenue();
+}
+
+async function loadRevenue() {
+    const panel = document.getElementById('revenuePanel');
+    if (!panel) return;
+    try {
+        const r = await aapi('/api/admin/revenue');
+        if (!r.configured) {
+            panel.innerHTML = `<div class="card card-padded" style="font-size:0.85rem;color:var(--text-muted)">
+                💳 Connect Stripe in <a href="#" onclick="showTab('settings');return false">Settings</a> to see revenue here.
+            </div>`;
+            return;
+        }
+        if (r.error) { panel.innerHTML = `<p style="color:var(--red);font-size:0.85rem">Revenue error: ${esc(r.error)}</p>`; return; }
+        const fmt = n => new Intl.NumberFormat('en-GB', { style:'currency', currency:r.currency||'GBP' }).format(n||0);
+        panel.innerHTML = `
+            <div class="stat-grid">
+                <div class="stat-card"><div class="stat-val">${fmt(r.revenue_this_month)}</div><div class="stat-lbl">Revenue This Month${r.has_more_invoices?' (100+)':''}</div></div>
+                <div class="stat-card"><div class="stat-val">${r.invoices_this_month}</div><div class="stat-lbl">Paid Invoices This Month</div></div>
+                <div class="stat-card"><div class="stat-val" style="color:#166534">${fmt(r.balance_available)}</div><div class="stat-lbl">Available Balance</div></div>
+                <div class="stat-card"><div class="stat-val" style="color:#d97706">${fmt(r.balance_pending)}</div><div class="stat-lbl">Pending Balance</div></div>
+            </div>`;
+    } catch (e) {
+        panel.innerHTML = `<p style="color:var(--red);font-size:0.85rem">${esc(e.message)}</p>`;
+    }
+}
+
+async function loadPending() {
+    const businesses = await aapi('/api/admin/businesses?status=pending');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Pending Vetting</h2><span style="font-size:0.85rem;color:var(--text-muted)">${businesses.length} awaiting review</span></div>
+        ${businesses.length ? businesses.map(bizCard).join('') : '<div class="empty">No businesses pending vetting.</div>'}`;
+}
+
+async function loadBusinesses() {
+    const businesses = await aapi('/api/admin/businesses');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">All Businesses</h2>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="showBizForm()">+ Add Business</button>
+                <input id="bizSearch" class="filter-input" placeholder="Search…" oninput="filterBiz()" style="width:180px">
+                <select id="bizStatus" class="filter-select" onchange="filterBiz()">
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <select id="bizPlan" class="filter-select" onchange="filterBiz()">
+                    <option value="">All Plans</option>
+                    <option value="starter">Starter</option>
+                    <option value="pro">Pro</option>
+                    <option value="featured">Featured</option>
+                </select>
+            </div>
+        </div>
+        <div id="bizFormPanel"></div>
+        <div id="bizList">${businesses.map(bizCard).join('')}</div>`;
+    window._allBiz = businesses;
+}
+
+let _allCats = [], _catLimits = { starter:1, pro:3, featured:5 };
+async function ensureCatsLoaded() {
+    // Admins can assign hidden categories too, not just the public default set
+    if (!_allCats.length) _allCats = await aapi('/api/admin/categories').then(rows => rows.filter(r=>r.status!=='disabled').map(r=>r.name)).catch(()=>[]);
+    _catLimits = await fetch('/api/plan-limits').then(r=>r.json()).catch(()=>_catLimits);
+}
+
+function bizCatSelectsHtml(plan, currentCats) {
+    const n = _catLimits[plan] || 1;
+    const labels = ['Primary Category','Additional Category 2','Additional Category 3','Additional Category 4','Additional Category 5'];
+    return Array.from({length:n}, (_,i) => `
+        <div class="form-group"><label>${labels[i]||'Category'}</label>
+            <select id="bf-cat-${i}">
+                <option value="">— None —</option>
+                ${_allCats.map(c=>`<option value="${esc(c)}"${currentCats[i]===c?' selected':''}>${esc(c)}</option>`).join('')}
+            </select>
+        </div>`).join('');
+}
+
+async function showBizForm(biz) {
+    await ensureCatsLoaded();
+    let currentCats = [];
+    if (biz) { try { currentCats = JSON.parse(biz.categories||'[]'); } catch {} if (!currentCats.length && biz.category) currentCats = [biz.category]; }
+    const plan = biz?.plan || 'starter';
+    document.getElementById('bizFormPanel').innerHTML = `
+        <div class="card card-padded" style="margin-bottom:1rem;max-width:760px">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">${biz ? 'Edit Business' : 'Add Business'}</h4>
+            <input type="hidden" id="bf-id" value="${biz?.id||''}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+                <div class="form-group form-full"><label>Business Name *</label><input id="bf-name" value="${esc(biz?.name||'')}"></div>
+                <div class="form-group"><label>Plan</label>
+                    <select id="bf-plan" onchange="onBizPlanChange()">
+                        <option value="starter" ${plan==='starter'?'selected':''}>Starter</option>
+                        <option value="pro" ${plan==='pro'?'selected':''}>Pro</option>
+                        <option value="featured" ${plan==='featured'?'selected':''}>Featured</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Status</label>
+                    <select id="bf-status">
+                        ${['active','pending','suspended','rejected'].map(s=>`<option value="${s}" ${(biz?.status||'active')===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
+                    </select>
+                </div>
+                <div id="bf-cats" style="display:contents">${bizCatSelectsHtml(plan, currentCats)}</div>
+                <div class="form-group form-full"><label>Short Description</label><input id="bf-short" value="${esc(biz?.short_desc||'')}" maxlength="120"></div>
+                <div class="form-group form-full"><label>Full Description</label><textarea id="bf-desc" rows="3">${esc(biz?.description||'')}</textarea></div>
+                <div class="form-group"><label>Postcode</label><input id="bf-postcode" value="${esc(biz?.postcode||'')}"></div>
+                <div class="form-group"><label>Town / City</label><input id="bf-town" value="${esc(biz?.town||'')}"></div>
+                <div class="form-group"><label>County</label><input id="bf-county" value="${esc(biz?.county||'')}"></div>
+                <div class="form-group"><label>Area / Region</label><input id="bf-area" value="${esc(biz?.area||'')}"></div>
+                <div class="form-group"><label>Phone</label><input id="bf-phone" value="${esc(biz?.phone||'')}"></div>
+                <div class="form-group"><label>Email</label><input id="bf-email" type="email" value="${esc(biz?.email||'')}"></div>
+                <div class="form-group form-full"><label>Website</label><input id="bf-website" type="url" value="${esc(biz?.website||'')}"></div>
+            </div>
+            ${!biz ? `
+            <h4 style="margin:1rem 0 0.5rem;font-size:0.88rem">Owner Login <span style="font-weight:400;color:var(--text-muted)">(optional — leave blank to add later)</span></h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">
+                <div class="form-group"><label>Owner Name</label><input id="bf-ownername"></div>
+                <div class="form-group"><label>Owner Email</label><input id="bf-owneremail" type="email"></div>
+                <div class="form-group"><label>Password</label><input id="bf-ownerpass" type="password"></div>
+            </div>` : ''}
+            <div style="display:flex;gap:0.75rem">
+                <button class="btn btn-navy" onclick="saveBizForm()">${biz ? 'Save Changes' : 'Create Business'}</button>
+                <button class="btn btn-outline" onclick="document.getElementById('bizFormPanel').innerHTML=''">Cancel</button>
+            </div>
+        </div>`;
+    document.getElementById('bizFormPanel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function onBizPlanChange() {
+    const plan = document.getElementById('bf-plan').value;
+    const current = [0,1,2,3,4].map(i => document.getElementById(`bf-cat-${i}`)?.value).filter(Boolean);
+    document.getElementById('bf-cats').innerHTML = bizCatSelectsHtml(plan, current);
+}
+
+async function saveBizForm() {
+    const id = document.getElementById('bf-id').value;
+    const categories = [0,1,2,3,4].map(i => document.getElementById(`bf-cat-${i}`)?.value).filter(Boolean);
+    const payload = {
+        name:        document.getElementById('bf-name').value.trim(),
+        categories,
+        short_desc:  document.getElementById('bf-short').value.trim(),
+        description: document.getElementById('bf-desc').value.trim(),
+        postcode:    document.getElementById('bf-postcode').value.trim(),
+        town:        document.getElementById('bf-town').value.trim(),
+        county:      document.getElementById('bf-county').value.trim(),
+        area:        document.getElementById('bf-area').value.trim(),
+        phone:       document.getElementById('bf-phone').value.trim(),
+        email:       document.getElementById('bf-email').value.trim(),
+        website:     document.getElementById('bf-website').value.trim(),
+    };
+    if (!id) {
+        payload.plan = document.getElementById('bf-plan').value;
+        payload.status = document.getElementById('bf-status').value;
+        payload.owner_name = document.getElementById('bf-ownername').value.trim();
+        payload.owner_email = document.getElementById('bf-owneremail').value.trim();
+        payload.owner_password = document.getElementById('bf-ownerpass').value;
+    }
+    try {
+        if (id) await aapi(`/api/admin/businesses/${id}`, 'PUT', payload);
+        else    await aapi('/api/admin/businesses', 'POST', payload);
+        toast(id ? 'Business updated' : 'Business created');
+        document.getElementById('bizFormPanel').innerHTML = '';
+        loadBusinesses();
+    } catch(e) { toast(e.message || 'Save failed', true); }
+}
+
+function editBiz(id) {
+    const b = (window._allBiz||[]).find(x => x.id === id);
+    if (b) showBizForm(b);
+}
+
+function filterBiz() {
+    const q = (document.getElementById('bizSearch')?.value||'').toLowerCase();
+    const st = document.getElementById('bizStatus')?.value||'';
+    const pl = document.getElementById('bizPlan')?.value||'';
+    const filtered = (window._allBiz||[]).filter(b =>
+        (!q || b.name.toLowerCase().includes(q) || (b.area||'').toLowerCase().includes(q)) &&
+        (!st || b.status === st) &&
+        (!pl || b.plan === pl)
+    );
+    document.getElementById('bizList').innerHTML = filtered.map(bizCard).join('') || '<div class="empty">No results</div>';
+}
+
+function billingBadge(b) {
+    const map = {
+        awaiting_payment: { label: 'Awaiting Payment', bg: '#f3f4f6', fg: '#4b5563' },
+        active:           { label: '💳 Paid',           bg: '#dcfce7', fg: '#166534' },
+        trialing:         { label: 'Trialing',          bg: '#dbeafe', fg: '#1e40af' },
+        past_due:         { label: '⚠️ Payment Failed', bg: '#fef9c3', fg: '#854d0e' },
+        unpaid:           { label: '⚠️ Unpaid',         bg: '#fee2e2', fg: '#991b1b' },
+        canceled:         { label: '🚫 Cancelled',      bg: '#fee2e2', fg: '#991b1b' },
+    };
+    const s = map[b.billing_status] || map.awaiting_payment;
+    return `<span class="badge" style="background:${s.bg};color:${s.fg}">${s.label}</span>`;
+}
+
+function bizCard(b) {
+    const statusBadge = {'active':'badge-verified','pending':'badge-pending','rejected':'badge-rejected','suspended':'badge-suspended'}[b.status]||'badge-starter';
+    const planBadge   = {'starter':'badge-starter','pro':'badge-pro','featured':'badge-featured'}[b.plan]||'badge-starter';
+    const promoActive = b.promo_expires_at && new Date(b.promo_expires_at.replace(' ','T')+'Z') > new Date();
+    return `<div class="card card-padded" style="margin-bottom:1rem" id="biz-${b.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+            <div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">
+                    <span style="font-weight:700;font-size:0.95rem">${esc(b.name)}</span>
+                    <span class="badge ${statusBadge}">${b.status}${b.status==='suspended'&&b.suspended_reason==='billing'?' — billing':''}</span>
+                    <span class="badge ${planBadge}">${b.plan}</span>
+                    ${b.featured?`<span class="badge badge-featured">⭐ Featured</span>`:''}
+                    ${billingBadge(b)}
+                    ${promoActive?`<span class="badge" style="background:#ede9fe;color:#6d28d9">🎁 Promo until ${fmtDate(b.promo_expires_at)}</span>`:''}
+                    ${b.has_restricted_categories?`<span class="badge" style="background:${b.restricted_review_status==='approved'?'#dcfce7':'#fef9c3'};color:${b.restricted_review_status==='approved'?'#166534':'#854d0e'}">🔒 Restricted: ${b.restricted_review_status||'pending'}</span>`:''}
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-muted)">${esc(b.category||'—')} · ${esc(b.area||'—')} · Joined ${fmtDate(b.created_at)}</div>
+                <div style="font-size:0.78rem;color:var(--text-muted)">📧 ${esc(b.email||'—')} · ⭐ ${b.review_count} reviews · ${(b.avg_rating||0).toFixed(1)}★${b.last_payment_at?` · Last paid ${fmtDate(b.last_payment_at)}`:''}</div>
+            </div>
+            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">
+                <a href="/business/${esc(b.slug)}" target="_blank" class="btn btn-outline btn-sm">View</a>
+                <button class="btn btn-outline btn-sm" onclick="editBiz(${b.id})">Edit</button>
+                ${b.status!=='active'?`<button class="btn btn-sm" style="background:#dcfce7;color:#166534" onclick="setStatus(${b.id},'active')">✓ Approve</button>`:''}
+                ${b.status==='active'?`<button class="btn btn-outline btn-sm" onclick="setStatus(${b.id},'suspended')">Suspend</button>`:''}
+                ${b.status!=='rejected'?`<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="setStatus(${b.id},'rejected')">✗ Reject</button>`:''}
+                <select class="filter-select" style="font-size:0.75rem;padding:0.35rem 0.6rem" onchange="setPlan(${b.id},this.value)">
+                    <option value="starter" ${b.plan==='starter'?'selected':''}>Starter</option>
+                    <option value="pro"     ${b.plan==='pro'?'selected':''}>Pro</option>
+                    <option value="featured" ${b.plan==='featured'?'selected':''}>Featured</option>
+                </select>
+                ${promoActive
+                    ? `<button class="btn btn-outline btn-sm" onclick="cancelPromo(${b.id})">Cancel Promo</button>`
+                    : `<button class="btn btn-outline btn-sm" onclick="togglePromoForm(${b.id})">🎁 Promo</button>`}
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deleteBiz(${b.id},'${esc(b.name)}')">Delete</button>
+            </div>
+        </div>
+        <div id="promo-form-${b.id}" style="display:none;align-items:center;gap:0.5rem;margin:-0.25rem 0 0.75rem;padding:0.6rem;background:var(--off-white);border-radius:6px;flex-wrap:wrap">
+            <span style="font-size:0.78rem;color:var(--text-muted)">Give</span>
+            <select id="promo-plan-${b.id}" class="filter-select" style="font-size:0.78rem;padding:0.3rem 0.5rem">
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+                <option value="featured" selected>Featured</option>
+            </select>
+            <span style="font-size:0.78rem;color:var(--text-muted)">for</span>
+            <input id="promo-days-${b.id}" type="number" min="1" value="30" style="width:70px;font-size:0.78rem;padding:0.3rem 0.5rem">
+            <span style="font-size:0.78rem;color:var(--text-muted)">days, then revert to ${b.plan}</span>
+            <button class="btn btn-primary btn-sm" onclick="applyPromo(${b.id})">Apply</button>
+        </div>
+        ${b.has_restricted_categories?adminComplianceDocsHtml(b):''}
+        ${b.description?`<p style="font-size:0.82rem;color:var(--text-muted);line-height:1.5">${esc((b.description||'').slice(0,200))}${b.description.length>200?'…':''}</p>`:''}
+    </div>`;
+}
+
+function adminComplianceDocsHtml(b) {
+    let docs = [], reqs = [];
+    try { docs = JSON.parse(b.compliance_docs || '[]'); } catch {}
+    try { reqs = JSON.parse(b.restricted_requirements || '[]'); } catch {}
+    return `<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem">
+        ${reqs.length?`Requires: ${reqs.join(', ')}. `:''}
+        ${docs.length ? 'Documents: ' + docs.map(d => `<a href="/${esc(d.path)}" target="_blank">${esc(d.original_name)}</a>`).join(', ') : 'No compliance documents uploaded yet.'}
+    </div>`;
+}
+
+async function setStatus(id, status) {
+    await aapi(`/api/admin/businesses/${id}/status`, 'PUT', { status });
+    toast('Status updated');
+    document.querySelectorAll('.admin-nav-item.active')[0]?.click();
+}
+async function setPlan(id, plan) {
+    await aapi(`/api/admin/businesses/${id}/plan`, 'PUT', { plan });
+    toast('Plan updated');
+}
+function togglePromoForm(id) {
+    const el = document.getElementById(`promo-form-${id}`);
+    el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+async function applyPromo(id) {
+    const plan = document.getElementById(`promo-plan-${id}`).value;
+    const days = document.getElementById(`promo-days-${id}`).value;
+    try {
+        await aapi(`/api/admin/businesses/${id}/promo`, 'PUT', { plan, days });
+        toast(`Promo applied — ${plan} for ${days} day${days==1?'':'s'}`);
+        document.querySelectorAll('.admin-nav-item.active')[0]?.click();
+    } catch(e) { toast(e.message || 'Failed to apply promo', true); }
+}
+async function cancelPromo(id) {
+    if (!confirm('Cancel this promo and revert to the original plan now?')) return;
+    try {
+        await aapi(`/api/admin/businesses/${id}/promo/cancel`, 'PUT');
+        toast('Promo cancelled');
+        document.querySelectorAll('.admin-nav-item.active')[0]?.click();
+    } catch(e) { toast(e.message || 'Failed to cancel promo', true); }
+}
+async function deleteBiz(id, name) {
+    if (!confirm(`Delete "${name}" and all its reviews? This cannot be undone.`)) return;
+    await aapi(`/api/admin/businesses/${id}`, 'DELETE');
+    toast('Business deleted');
+    document.getElementById('biz-'+id)?.remove();
+}
+
+async function loadReviews() {
+    const reviews = await aapi('/api/admin/reviews?status=pending');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Review Queue</h2>
+            <div style="display:flex;gap:0.5rem">
+                <button class="btn btn-outline btn-sm" onclick="loadAllReviews()">Show All Reviews</button>
+            </div>
+        </div>
+        <div id="reviewList">
+            ${reviews.length ? reviews.map(reviewCard).join('') : '<div class="empty">No reviews pending approval. 🎉</div>'}
+        </div>`;
+}
+
+async function loadAllReviews() {
+    const reviews = await aapi('/api/admin/reviews');
+    document.getElementById('reviewList').innerHTML = reviews.length ? reviews.map(reviewCard).join('') : '<div class="empty">No reviews yet.</div>';
+}
+
+function reviewCard(r) {
+    const statusBadge = {'approved':'badge-verified','pending':'badge-pending','rejected':'badge-rejected'}[r.status]||'badge-starter';
+    return `<div class="card card-padded" style="margin-bottom:0.75rem" id="rv-${r.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+            <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">
+                    <span style="font-weight:600">${esc(r.reviewer_name)}</span>
+                    <span style="color:var(--gold)">${'★'.repeat(r.rating)+'☆'.repeat(5-r.rating)}</span>
+                    <span class="badge ${statusBadge}">${r.status}</span>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem">
+                    for <a href="/business/${esc(r.business_slug)}" target="_blank" style="color:var(--navy);font-weight:600">${esc(r.business_name)}</a>
+                    · ${fmtDate(r.created_at)}
+                    ${r.reviewer_email?` · ${esc(r.reviewer_email)}`:''}
+                </div>
+                ${r.title?`<div style="font-weight:600;font-size:0.88rem;margin-bottom:0.2rem">${esc(r.title)}</div>`:''}
+                <div style="font-size:0.875rem;color:var(--text-mid)">${esc(r.body)}</div>
+            </div>
+            <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap">
+                ${r.status!=='approved'?`<button class="btn btn-sm" style="background:#dcfce7;color:#166534" onclick="setReviewStatus(${r.id},'approved')">✓ Approve</button>`:''}
+                ${r.status!=='rejected'?`<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="setReviewStatus(${r.id},'rejected')">✗ Reject</button>`:''}
+            </div>
+        </div>
+    </div>`;
+}
+
+async function setReviewStatus(id, status) {
+    await aapi(`/api/admin/reviews/${id}/status`, 'PUT', { status });
+    toast('Review ' + status);
+    document.getElementById('rv-'+id)?.remove();
+}
+
+async function loadDiscounts() {
+    const codes = await aapi('/api/admin/discounts');
+    const now = new Date();
+    function statusBadge(dc) {
+        if (dc.expires_at && new Date(dc.expires_at) < now) return '<span class="badge" style="background:#fee2e2;color:#b91c1c">Expired</span>';
+        if (dc.max_uses !== null && dc.use_count >= dc.max_uses) return '<span class="badge" style="background:#fee2e2;color:#b91c1c">Exhausted</span>';
+        return '<span class="badge badge-pro">Active</span>';
+    }
+    function fmtDate(s) { return s ? new Date(s).toLocaleDateString('en-GB') : '—'; }
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Discount Codes</h2></div>
+
+        <div class="card card-padded" style="max-width:640px;margin-bottom:1.5rem">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">Create New Code</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                <div class="form-group" style="margin:0"><label>Code *</label><input id="dc-code" placeholder="e.g. LAUNCH20" style="text-transform:uppercase"></div>
+                <div class="form-group" style="margin:0"><label>Discount Type *</label>
+                    <select id="dc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed amount (£)</option></select>
+                </div>
+                <div class="form-group" style="margin:0"><label>Value *</label><input id="dc-value" type="number" min="0.01" step="0.01" placeholder="e.g. 20"></div>
+                <div class="form-group" style="margin:0"><label>Max Uses <span style="font-weight:400;color:var(--text-muted)">(blank = unlimited)</span></label><input id="dc-maxuses" type="number" min="1" placeholder="e.g. 50"></div>
+                <div class="form-group" style="margin:0;grid-column:1/-1"><label>Expires On <span style="font-weight:400;color:var(--text-muted)">(blank = never)</span></label><input id="dc-expires" type="date"></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:1rem" onclick="createDiscount()">Create Code</button>
+        </div>
+
+        <div class="card" style="max-width:900px">
+            <table class="data-table">
+                <thead><tr><th>Code</th><th>Discount</th><th>Uses</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                ${codes.length ? codes.map(dc => `
+                    <tr>
+                        <td><strong style="font-family:monospace;font-size:0.9rem">${esc(dc.code)}</strong></td>
+                        <td>${dc.type === 'percent' ? dc.value + '%' : '£' + dc.value} off</td>
+                        <td>
+                            <a href="#" onclick="viewUses(${dc.id},'${esc(dc.code)}');return false" style="color:var(--navy)">
+                                ${dc.use_count}${dc.max_uses !== null ? ' / ' + dc.max_uses : ''} uses
+                            </a>
+                        </td>
+                        <td>${fmtDate(dc.expires_at)}</td>
+                        <td>${statusBadge(dc)}</td>
+                        <td><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteDiscount(${dc.id})">Delete</button></td>
+                    </tr>
+                `).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">No discount codes yet</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="usesPanel" style="display:none;margin-top:1.5rem;max-width:640px"></div>
+    `;
+}
+
+async function createDiscount() {
+    const code     = document.getElementById('dc-code').value.trim();
+    const type     = document.getElementById('dc-type').value;
+    const value    = document.getElementById('dc-value').value;
+    const max_uses = document.getElementById('dc-maxuses').value;
+    const expires  = document.getElementById('dc-expires').value;
+    if (!code || !value) return alert('Code and value are required');
+    try {
+        await aapi('/api/admin/discounts', 'POST', { code, type, value: parseFloat(value),
+            max_uses: max_uses ? parseInt(max_uses) : null, expires_at: expires || null });
+        loadDiscounts();
+    } catch(e) { alert(e.message); }
+}
+
+async function deleteDiscount(id) {
+    if (!confirm('Delete this discount code and all its usage history?')) return;
+    await aapi('/api/admin/discounts/' + id, 'DELETE');
+    loadDiscounts();
+}
+
+async function viewUses(id, code) {
+    const panel = document.getElementById('usesPanel');
+    const uses  = await aapi('/api/admin/discounts/' + id + '/uses');
+    panel.style.display = '';
+    panel.innerHTML = `
+        <div class="card card-padded">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">Usage log — <span style="font-family:monospace">${esc(code)}</span>
+                <button onclick="document.getElementById('usesPanel').style.display='none'" style="float:right;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem">✕</button>
+            </h4>
+            ${uses.length ? `
+            <table class="data-table">
+                <thead><tr><th>Business</th><th>Owner Email</th><th>Used At</th></tr></thead>
+                <tbody>${uses.map(u => `
+                    <tr>
+                        <td>${esc(u.business_name)}</td>
+                        <td>${esc(u.owner_email)}</td>
+                        <td>${new Date(u.used_at).toLocaleString('en-GB')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : '<p style="color:var(--text-muted);font-size:0.85rem">No uses yet.</p>'}
+        </div>`;
+}
+
+// ── Reports ──────────────────────────────────────────────────────────────────
+
+async function loadReports(status = 'open') {
+    const reports = await aapi('/api/admin/reports' + (status ? `?status=${status}` : ''));
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Reports</h2>
+            <div style="display:flex;gap:0.5rem">
+                <select id="reportStatus" class="filter-select" onchange="loadReports(this.value)">
+                    <option value="open" ${status==='open'?'selected':''}>Open</option>
+                    <option value="resolved" ${status==='resolved'?'selected':''}>Resolved</option>
+                    <option value="" ${!status?'selected':''}>All</option>
+                </select>
+            </div>
+        </div>
+        <div id="reportList">${reports.length ? reports.map(reportCard).join('') : '<div class="empty">No reports here. 🎉</div>'}</div>`;
+}
+
+function reportCard(r) {
+    const typeBadge = r.type === 'trader' ? '<span class="badge badge-pending">Trader</span>' : '<span class="badge badge-starter">Issue</span>';
+    return `<div class="card card-padded" style="margin-bottom:0.75rem" id="report-${r.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+            <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem">
+                    ${typeBadge}
+                    <span class="badge ${r.status==='open'?'badge-pending':'badge-verified'}">${r.status}</span>
+                    ${r.trader_name?`<span style="font-weight:600;font-size:0.85rem">${esc(r.trader_name)}</span>`:''}
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${esc(r.message)}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(r.created_at)}${r.reporter_email?` · ${esc(r.reporter_email)}`:''}</div>
+            </div>
+            ${r.status==='open'?`<button class="btn btn-sm" style="background:#dcfce7;color:#166534" onclick="setReportStatus(${r.id},'resolved')">✓ Resolve</button>`
+                                :`<button class="btn btn-outline btn-sm" onclick="setReportStatus(${r.id},'open')">Reopen</button>`}
+        </div>
+    </div>`;
+}
+
+async function setReportStatus(id, status) {
+    await aapi(`/api/admin/reports/${id}/status`, 'PUT', { status });
+    toast(status === 'resolved' ? 'Marked resolved' : 'Reopened');
+    document.getElementById('report-'+id)?.remove();
+}
+
+// ── Categories ────────────────────────────────────────────────────────────────
+
+async function loadCategories(q = '', filter = '') {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (filter) params.set('filter', filter);
+    const cats = await aapi('/api/admin/categories' + (params.toString() ? '?' + params : ''));
+    window._allCatRows = cats;
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Categories</h2>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="showCatForm()">+ Add Category</button>
+                <input id="catSearch" class="filter-input" placeholder="Search…" value="${esc(q)}" style="width:180px" onkeydown="if(event.key==='Enter') applyCatFilters()">
+                <select id="catFilter" class="filter-select" onchange="applyCatFilters()">
+                    <option value="">All</option>
+                    <option value="public" ${filter==='public'?'selected':''}>Public</option>
+                    <option value="hidden" ${filter==='hidden'?'selected':''}>Hidden</option>
+                    <option value="restricted" ${filter==='restricted'?'selected':''}>Restricted</option>
+                    <option value="coming_soon" ${filter==='coming_soon'?'selected':''}>Coming Soon</option>
+                    <option value="disabled" ${filter==='disabled'?'selected':''}>Disabled</option>
+                </select>
+                <button class="btn btn-outline btn-sm" onclick="applyCatFilters()">Search</button>
+            </div>
+        </div>
+        <div id="catFormPanel"></div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">${cats.length} category${cats.length!==1?'ies':''} found</div>
+        <div id="catList">${cats.map((c,i) => catRowHtml(c,i,cats.length)).join('') || '<div class="empty">No categories found.</div>'}</div>`;
+}
+
+function applyCatFilters() {
+    loadCategories(document.getElementById('catSearch').value.trim(), document.getElementById('catFilter').value);
+}
+
+function catRowHtml(c, i, total) {
+    return `<div class="card card-padded" style="margin-bottom:0.5rem;padding:0.6rem 0.9rem" id="cat-row-${c.id}">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column">
+                <button class="btn btn-outline btn-sm" style="padding:0 0.4rem;line-height:1.3" ${i===0?'disabled':''} onclick="moveCategory(${c.id},'up')">▲</button>
+                <button class="btn btn-outline btn-sm" style="padding:0 0.4rem;line-height:1.3" ${i===total-1?'disabled':''} onclick="moveCategory(${c.id},'down')">▼</button>
+            </div>
+            <div style="flex:1;min-width:160px">
+                <div style="font-weight:600;font-size:0.88rem">${esc(c.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);font-family:monospace">/${esc(c.slug||'')}</div>
+            </div>
+            <button class="badge" style="${c.is_public?'background:#dcfce7;color:#166534':'background:#f3f4f6;color:#4b5563'};border:none;cursor:pointer" onclick="toggleCatField(${c.id},'is_public',${c.is_public?0:1})">${c.is_public?'Public':'Hidden'}</button>
+            <button class="badge" style="${c.is_restricted?'background:#fee2e2;color:#991b1b':'background:#f3f4f6;color:#9ca3af'};border:none;cursor:pointer" onclick="toggleCatField(${c.id},'is_restricted',${c.is_restricted?0:1})">${c.is_restricted?'🔒 Restricted':'Not restricted'}</button>
+            <select class="filter-select" style="font-size:0.75rem;padding:0.3rem 0.5rem" onchange="setCatStatus(${c.id},this.value)">
+                <option value="active" ${c.status==='active'?'selected':''}>Active</option>
+                <option value="coming_soon" ${c.status==='coming_soon'?'selected':''}>Coming Soon</option>
+                <option value="disabled" ${c.status==='disabled'?'selected':''}>Disabled</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="editCat(${c.id})">Edit</button>
+            <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deleteCategory(${c.id},'${esc(c.name)}')">Delete</button>
+        </div>
+    </div>`;
+}
+
+function slugifyClient(s) {
+    return String(s).toLowerCase().trim().replace(/&/g,' and ').replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+
+function showCatForm(cat) {
+    document.getElementById('catFormPanel').innerHTML = `
+        <div class="card card-padded" style="margin-bottom:1rem;max-width:720px">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">${cat ? 'Edit Category' : 'Add Category'}</h4>
+            <input type="hidden" id="cf-id" value="${cat?.id||''}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+                <div class="form-group"><label>Name *</label><input id="cf-name" value="${esc(cat?.name||'')}" oninput="${cat?'':"document.getElementById('cf-slug').value = document.getElementById('cf-slug').dataset.touched ? document.getElementById('cf-slug').value : slugifyClient(this.value)"}"></div>
+                <div class="form-group"><label>Slug</label><input id="cf-slug" value="${esc(cat?.slug||'')}" onchange="this.dataset.touched=1"></div>
+                <div class="form-group"><label>Sort Order</label><input id="cf-sort" type="number" value="${cat?.sort_order ?? 0}"></div>
+                <div class="form-group"><label>Status</label>
+                    <select id="cf-status">
+                        <option value="active" ${(cat?.status||'active')==='active'?'selected':''}>Active</option>
+                        <option value="coming_soon" ${cat?.status==='coming_soon'?'selected':''}>Coming Soon</option>
+                        <option value="disabled" ${cat?.status==='disabled'?'selected':''}>Disabled</option>
+                    </select>
+                </div>
+                <div class="form-group"><label><input type="checkbox" id="cf-public" ${!cat||cat.is_public?'checked':''}> Public (visible on website)</label></div>
+                <div class="form-group"><label><input type="checkbox" id="cf-restricted" ${cat?.is_restricted?'checked':''}> Restricted (requires manual review)</label></div>
+                <div class="form-group"><label><input type="checkbox" id="cf-docs" ${cat?.requires_documents?'checked':''}> Requires documents</label></div>
+                <div class="form-group"><label><input type="checkbox" id="cf-insurance" ${cat?.requires_insurance?'checked':''}> Requires insurance</label></div>
+                <div class="form-group"><label><input type="checkbox" id="cf-quals" ${cat?.requires_qualifications?'checked':''}> Requires qualifications</label></div>
+                <div class="form-group"><label><input type="checkbox" id="cf-manual" ${cat?.requires_manual_approval?'checked':''}> Requires manual approval</label></div>
+                <div class="form-group form-full"><label>SEO Title</label><input id="cf-seotitle" placeholder="${esc(cat?.name||'Category')} Near You | Trusted Local Trades" value="${esc(cat?.seo_title||'')}"></div>
+                <div class="form-group form-full"><label>SEO Description</label><textarea id="cf-seodesc" rows="2" placeholder="Find trusted ${esc(cat?.name||'trades')} near you...">${esc(cat?.seo_description||'')}</textarea></div>
+                <div class="form-group form-full"><label>Description</label><textarea id="cf-desc" rows="3">${esc(cat?.description||'')}</textarea></div>
+            </div>
+            <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+                <button class="btn btn-navy" onclick="saveCatForm()">${cat ? 'Save Changes' : 'Create Category'}</button>
+                <button class="btn btn-outline" onclick="document.getElementById('catFormPanel').innerHTML=''">Cancel</button>
+            </div>
+        </div>`;
+    document.getElementById('catFormPanel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function editCat(id) {
+    const c = (window._allCatRows||[]).find(x => x.id === id);
+    if (c) showCatForm(c);
+}
+
+async function saveCatForm() {
+    const id = document.getElementById('cf-id').value;
+    const payload = {
+        name: document.getElementById('cf-name').value.trim(),
+        slug: document.getElementById('cf-slug').value.trim(),
+        sort_order: document.getElementById('cf-sort').value,
+        status: document.getElementById('cf-status').value,
+        is_public: document.getElementById('cf-public').checked,
+        is_restricted: document.getElementById('cf-restricted').checked,
+        requires_documents: document.getElementById('cf-docs').checked,
+        requires_insurance: document.getElementById('cf-insurance').checked,
+        requires_qualifications: document.getElementById('cf-quals').checked,
+        requires_manual_approval: document.getElementById('cf-manual').checked,
+        seo_title: document.getElementById('cf-seotitle').value.trim(),
+        seo_description: document.getElementById('cf-seodesc').value.trim(),
+        description: document.getElementById('cf-desc').value.trim(),
+    };
+    if (!payload.name) return toast('Name is required', true);
+    try {
+        if (id) await aapi(`/api/admin/categories/${id}`, 'PUT', payload);
+        else    await aapi('/api/admin/categories', 'POST', payload);
+        toast(id ? 'Category updated' : 'Category created');
+        document.getElementById('catFormPanel').innerHTML = '';
+        applyCatFilters();
+    } catch(e) { toast(e.message || 'Save failed', true); }
+}
+
+async function toggleCatField(id, field, value) {
+    try { await aapi(`/api/admin/categories/${id}`, 'PUT', { [field]: value }); applyCatFilters(); }
+    catch(e) { toast(e.message, true); }
+}
+async function setCatStatus(id, status) {
+    try { await aapi(`/api/admin/categories/${id}`, 'PUT', { status }); toast('Status updated'); }
+    catch(e) { toast(e.message, true); }
+}
+async function moveCategory(id, direction) {
+    await aapi(`/api/admin/categories/${id}/move`, 'PUT', { direction });
+    applyCatFilters();
+}
+async function deleteCategory(id, name) {
+    if (!confirm(`Delete category "${name}"? This cannot be undone — disabling it instead is reversible.`)) return;
+    try { await aapi(`/api/admin/categories/${id}`, 'DELETE'); toast('Category deleted'); applyCatFilters(); }
+    catch(e) { toast(e.message, true); }
+}
+
+async function loadSettings() {
+    const s = await aapi('/api/admin/settings');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Settings</h2></div>
+
+        <div class="card card-padded" style="max-width:560px;margin-bottom:1.2rem">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">Site Branding</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+
+                <div>
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.06em">Site Logo</div>
+                    <div style="height:80px;border:1.5px dashed var(--border);border-radius:8px;background:var(--navy);display:flex;align-items:center;justify-content:center;margin-bottom:0.6rem;overflow:hidden;padding:0.75rem">
+                        ${s.site_logo
+                            ? `<img src="/${esc(s.site_logo)}?t=${Date.now()}" style="max-height:56px;max-width:100%;object-fit:contain">`
+                            : `<span style="font-size:0.75rem;color:rgba(255,255,255,0.4)">No logo uploaded</span>`}
+                    </div>
+                    <label class="btn btn-outline btn-sm" style="cursor:pointer;display:block;text-align:center">
+                        ${s.site_logo ? 'Replace Logo' : 'Upload Logo'}
+                        <input type="file" accept="image/*" style="display:none" onchange="uploadSiteAsset('site-logo',this)">
+                    </label>
+                    <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.35rem">PNG or SVG recommended · shown in the navbar</p>
+                </div>
+
+                <div>
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.06em">Favicon</div>
+                    <div style="height:80px;border:1.5px dashed var(--border);border-radius:8px;background:var(--off-white);display:flex;align-items:center;justify-content:center;margin-bottom:0.6rem">
+                        ${s.site_favicon
+                            ? `<img src="/favicon.ico?t=${Date.now()}" style="width:48px;height:48px;object-fit:contain">`
+                            : `<span style="font-size:0.75rem;color:var(--text-muted)">No favicon uploaded</span>`}
+                    </div>
+                    <label class="btn btn-outline btn-sm" style="cursor:pointer;display:block;text-align:center">
+                        ${s.site_favicon ? 'Replace Favicon' : 'Upload Favicon'}
+                        <input type="file" accept=".ico,.png,.svg,image/*" style="display:none" onchange="uploadSiteAsset('favicon',this)">
+                    </label>
+                    <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.35rem">.ico or .png · ideally 32×32 or 64×64px</p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="card card-padded" style="max-width:560px;margin-bottom:1.2rem">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">Site Configuration</h4>
+            <div class="form-group"><label>Site Name</label><input id="s-name" value="${esc(s.site_name||'')}"></div>
+            <div class="form-group"><label>Tagline</label><input id="s-tagline" value="${esc(s.site_tagline||'')}"></div>
+            <div class="form-group"><label>Site URL <span style="font-weight:400;color:var(--text-muted)">(blank = use server default)</span></label><input id="s-url" placeholder="https://www.example.co.uk" value="${esc(s.site_url||'')}"></div>
+            <h4 style="margin:1.2rem 0 0.75rem;font-size:0.95rem">Subscription Prices (display only)</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">
+                <div class="form-group"><label>Starter £/mo</label><input id="s-starter" type="number" value="${esc(s.starter_price||'19')}"></div>
+                <div class="form-group"><label>Pro £/mo</label><input id="s-pro" type="number" value="${esc(s.pro_price||'39')}"></div>
+                <div class="form-group"><label>Featured £/mo</label><input id="s-featured" type="number" value="${esc(s.featured_price||'79')}"></div>
+            </div>
+            <h4 style="margin:1.2rem 0 0.75rem;font-size:0.95rem">Categories Allowed Per Plan</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">
+                <div class="form-group"><label>Starter</label><input id="s-catstarter" type="number" min="1" value="${esc(s.cat_limit_starter||'1')}"></div>
+                <div class="form-group"><label>Pro</label><input id="s-catpro" type="number" min="1" value="${esc(s.cat_limit_pro||'3')}"></div>
+                <div class="form-group"><label>Featured</label><input id="s-catfeatured" type="number" min="1" value="${esc(s.cat_limit_featured||'5')}"></div>
+            </div>
+            <h4 style="margin:1.2rem 0 0.75rem;font-size:0.95rem">Directory Search &amp; Featured Pinning</h4>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin:-0.5rem 0 0.75rem">Controls how far "near me" searches reach, and how local + how many Featured listings can pin to the top of results.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">
+                <div class="form-group"><label>Default search radius (mi)</label><input id="s-radius" type="number" min="1" value="${esc(s.search_radius_default_miles||'20')}"></div>
+                <div class="form-group"><label>Featured pin radius (mi)</label><input id="s-pinradius" type="number" min="1" value="${esc(s.featured_pin_radius_miles||'15')}"></div>
+                <div class="form-group"><label>Max pinned per search</label><input id="s-pinmax" type="number" min="1" value="${esc(s.featured_pin_max||'3')}"></div>
+            </div>
+            <button class="btn btn-navy" onclick="saveSettings()">Save Settings</button>
+        </div>
+
+        <div class="card card-padded" style="max-width:560px;margin-bottom:1.2rem">
+            <h4 style="margin-bottom:0.5rem;font-size:0.95rem">Stripe &amp; Payments</h4>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">
+                ${s.stripe_secret_key_set
+                    ? '<span style="color:#166534">✓ Stripe is connected</span> — subscriptions, automatic billing and revenue reporting are live.'
+                    : '<span style="color:#991b1b">Not connected</span> — add your Secret Key below to enable automatic payments. Until then, signup assigns plans without charging a card.'}
+            </p>
+            <div class="form-group"><label>Secret Key</label>
+                <input id="s-stripesecret" type="password" placeholder="${s.stripe_secret_key_masked || 'sk_live_…'}">
+                <div class="form-hint">Leave blank to keep the current key. Find this in Stripe Dashboard → Developers → API keys.</div>
+            </div>
+            <div class="form-group"><label>Publishable Key</label><input id="s-stripepub" value="${esc(s.stripe_publishable_key||'')}" placeholder="pk_live_…"></div>
+            <div class="form-group"><label>Webhook Signing Secret</label>
+                <input id="s-stripewh" type="password" placeholder="${s.stripe_webhook_secret_masked || 'whsec_…'}">
+                <div class="form-hint">From Stripe Dashboard → Developers → Webhooks, for the endpoint pointed at <code>/api/webhook</code>.</div>
+            </div>
+            <h4 style="margin:1.2rem 0 0.75rem;font-size:0.95rem">Price IDs</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">
+                <div class="form-group"><label>Starter</label><input id="s-pricestarter" value="${esc(s.stripe_price_starter||'')}" placeholder="price_…"></div>
+                <div class="form-group"><label>Pro</label><input id="s-pricepro" value="${esc(s.stripe_price_pro||'')}" placeholder="price_…"></div>
+                <div class="form-group"><label>Featured</label><input id="s-pricefeatured" value="${esc(s.stripe_price_featured||'')}" placeholder="price_…"></div>
+            </div>
+            <button class="btn btn-navy" onclick="saveSettings()">Save Settings</button>
+            <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border)">
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.6rem">Payouts go to whichever bank account is linked in your Stripe account — there's no separate bank API to connect; Stripe handles that and pays your bank automatically on its schedule.</p>
+                <a href="https://dashboard.stripe.com/settings/payouts" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Manage Payouts &amp; Bank Account →</a>
+            </div>
+        </div>
+
+        <div class="card card-padded" style="max-width:560px">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">Change Admin Password</h4>
+            <div class="form-group"><label>Current Password</label><input id="pw-current" type="password"></div>
+            <div class="form-group"><label>New Password <span style="font-weight:400;color:var(--text-muted)">(min. 8 characters)</span></label><input id="pw-new" type="password"></div>
+            <button class="btn btn-navy" onclick="changeAdminPassword()">Update Password</button>
+        </div>`;
+}
+
+async function changeAdminPassword() {
+    const current_password = document.getElementById('pw-current').value;
+    const new_password = document.getElementById('pw-new').value;
+    if (!current_password || !new_password) return toast('Both fields are required', true);
+    try {
+        await aapi('/api/admin/password', 'PUT', { current_password, new_password });
+        toast('Password updated');
+        document.getElementById('pw-current').value = '';
+        document.getElementById('pw-new').value = '';
+    } catch(e) { toast(e.message || 'Failed to update password', true); }
+}
+
+async function saveSettings() {
+    await aapi('/api/admin/settings', 'POST', {
+        site_name:      document.getElementById('s-name').value.trim(),
+        site_tagline:   document.getElementById('s-tagline').value.trim(),
+        site_url:       document.getElementById('s-url').value.trim(),
+        starter_price:  document.getElementById('s-starter').value,
+        pro_price:      document.getElementById('s-pro').value,
+        featured_price: document.getElementById('s-featured').value,
+        cat_limit_starter:  document.getElementById('s-catstarter').value,
+        cat_limit_pro:      document.getElementById('s-catpro').value,
+        cat_limit_featured: document.getElementById('s-catfeatured').value,
+        search_radius_default_miles: document.getElementById('s-radius').value,
+        featured_pin_radius_miles:   document.getElementById('s-pinradius').value,
+        featured_pin_max:            document.getElementById('s-pinmax').value,
+        stripe_secret_key:      document.getElementById('s-stripesecret').value.trim(),
+        stripe_publishable_key: document.getElementById('s-stripepub').value.trim(),
+        stripe_webhook_secret:  document.getElementById('s-stripewh').value.trim(),
+        stripe_price_starter:   document.getElementById('s-pricestarter').value.trim(),
+        stripe_price_pro:       document.getElementById('s-pricepro').value.trim(),
+        stripe_price_featured:  document.getElementById('s-pricefeatured').value.trim(),
+    });
+    toast('Settings saved');
+    loadSettings();
+}
+
+async function uploadSiteAsset(type, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('image', file);
+    try {
+        const r = await fetch(`/api/admin/upload/${type}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + atoken },
+            body: fd,
+        });
+        let d;
+        try { d = await r.json(); } catch { d = { error: `Server error (${r.status})` }; }
+        if (!r.ok) throw new Error(d.error || 'Upload failed');
+        toast(type === 'favicon' ? 'Favicon updated' : 'Logo updated');
+        loadSettings();
+    } catch(e) { toast(e.message || 'Upload failed', true); }
+}
+
+// Auto-login
+if (atoken) {
+    fetch('/api/admin/stats', { headers: { Authorization: 'Bearer ' + atoken } })
+        .then(r => r.ok ? showAdmin() : null)
+        .catch(() => {});
+}
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

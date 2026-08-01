@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Categories — Monasite</title>
+    <meta name="description" content="Browse trusted local trade categories — from builders and electricians to fire safety and security specialists.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+    <style>
+        .cat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0.85rem; }
+        .cat-tile { display:block; background:#fff; border:1px solid var(--border); border-radius:8px; padding:1rem 1.1rem; text-decoration:none; color:inherit; transition:box-shadow 0.15s, border-color 0.15s; }
+        .cat-tile:hover { box-shadow:var(--shadow-lg); border-color:var(--navy); }
+        .cat-tile-name { font-weight:600; font-size:0.92rem; color:var(--navy); }
+        .cat-tile-desc { font-size:0.78rem; color:var(--text-muted); margin-top:0.3rem; line-height:1.4; }
+        .cat-count { font-size:0.85rem; color:var(--text-muted); margin-bottom:1.2rem; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories" style="color:#fff">Categories</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+            <a href="/dashboard">My Dashboard</a>
+        </div>
+    </div>
+</nav>
+
+<div class="dir-hero">
+    <div class="dir-hero-inner">
+        <p class="section-label" style="margin-bottom:0.5rem">Browse By Trade</p>
+        <h1 style="margin-bottom:0.35rem">All Categories</h1>
+        <p class="dir-hero-sub">Find the right local trade for the job.</p>
+        <div class="search-inline">
+            <input id="catQ" type="text" placeholder="Search categories…" style="flex:1;min-width:220px">
+        </div>
+    </div>
+</div>
+
+<div class="section-sm" style="background:#fff">
+    <div class="container">
+        <div class="cat-count" id="catCount">Loading…</div>
+        <div class="cat-grid" id="catGrid"></div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links" style="margin-bottom:0.4rem"><a href="/report?type=issue">Report an Issue</a> · <a href="/report?type=trader">Report a Trader</a></div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span></div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+let allCategories = [];
+
+function render(list) {
+    document.getElementById('catCount').textContent = `${list.length} categor${list.length!==1?'ies':'y'}`;
+    document.getElementById('catGrid').innerHTML = list.map(c => `
+        <a class="cat-tile" href="/directory?category=${encodeURIComponent(c.name)}">
+            <div class="cat-tile-name">${esc(c.name)}</div>
+            ${c.description ? `<div class="cat-tile-desc">${esc(c.description)}</div>` : ''}
+        </a>`).join('') || '<div class="empty">No categories found.</div>';
+}
+
+async function load() {
+    allCategories = await fetch('/api/public-categories').then(r => r.json()).catch(() => []);
+    render(allCategories);
+}
+
+document.getElementById('catQ').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    render(q ? allCategories.filter(c => c.name.toLowerCase().includes(q)) : allCategories);
+});
+
+load();
+</script>
+</body>
+</html>

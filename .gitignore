@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+monasite.db
+.DS_Store
+.claude/settings.local.json
+
+# User-uploaded content — persisted on the Railway volume, not in git
+documents/compliance/
+images/logos/
+images/covers/
+images/gallery/

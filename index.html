@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monasite — Find Trusted Local Businesses</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+    <style>
+        .hero-bg { background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%); }
+        .hero-bg::after { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 65% 45%, rgba(201,168,76,0.13) 0%, transparent 52%); pointer-events:none; }
+        .stats-bar {
+            background: linear-gradient(90deg, #0c1726, #1B2A4A, #0c1726);
+            border-top: 1px solid rgba(201,168,76,0.15);
+            border-bottom: 1px solid rgba(201,168,76,0.1);
+            padding: 1.75rem 1.5rem;
+        }
+        .stats-bar-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: center; align-items: center; gap: 0; flex-wrap: wrap; }
+        .stat-item { text-align: center; padding: 0 3rem; }
+        .stat-item + .stat-item { border-left: 1px solid rgba(255,255,255,0.08); }
+        .stat-item .val { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--gold); font-weight: 700; line-height: 1; }
+        .stat-item .lbl { font-size: 0.68rem; color: rgba(255,255,255,0.42); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 0.35rem; }
+        .featured-tag { background: var(--gold); color: var(--navy); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 0.18rem 0.55rem; border-radius: 3px; }
+        .cta-section { background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%); position: relative; overflow: hidden; }
+        .cta-section::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 30% 50%, rgba(201,168,76,0.16) 0%, transparent 62%); }
+        .cta-gold-bar { width: 44px; height: 2px; background: var(--gold); border-radius: 2px; margin: 0 auto 1.5rem; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+            <a href="/dashboard">My Dashboard</a>
+            <a href="/admin" style="color:rgba(255,255,255,0.3);font-size:0.75rem">Admin</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero hero-bg">
+    <div class="container">
+        <p class="hero-label">Find Trusted Local Businesses</p>
+        <h1>Every Business<br><span>Vetted & Verified</span></h1>
+        <p class="hero-sub"><span data-brand>Monasite</span> only lists businesses we've verified. Real companies, real reviews, ranked by reputation.</p>
+        <div class="search-bar">
+            <input id="searchQ" type="text" placeholder="What are you looking for? (e.g. Electrician)">
+            <select id="searchArea">
+                <option value="">All Areas</option>
+            </select>
+            <button class="btn btn-primary" onclick="doSearch()">Search →</button>
+        </div>
+        <div style="margin-top:1.2rem;display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap" id="catQuickLinks"></div>
+    </div>
+</section>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+    <div class="stats-bar-inner" id="statsBar">
+        <div class="stat-item"><div class="val">—</div><div class="lbl">Verified Businesses</div></div>
+        <div class="stat-item"><div class="val">—</div><div class="lbl">Customer Reviews</div></div>
+        <div class="stat-item"><div class="val">—</div><div class="lbl">Areas Covered</div></div>
+    </div>
+</div>
+
+<!-- Top rated -->
+<section class="section" style="background:#fff">
+    <div class="container">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem">
+            <div>
+                <span class="section-label">Highest Ranked</span>
+                <h2 class="section-title" style="margin-bottom:0">Top Rated Businesses</h2>
+            </div>
+            <a href="/directory" class="btn btn-outline btn-sm">Browse All →</a>
+        </div>
+        <div class="grid-3" id="topRated"><div class="loading">Loading…</div></div>
+    </div>
+</section>
+
+<!-- Featured -->
+<section class="section" style="background:var(--off-white)">
+    <div class="container">
+        <span class="section-label">Premium Listings</span>
+        <h2 class="section-title" style="margin-bottom:0.4rem">Featured Businesses</h2>
+        <p class="section-sub" style="margin-bottom:2rem">Our Featured members appear at the top of every search in their area.</p>
+        <div class="grid-4" id="featuredList"><div class="loading">Loading…</div></div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="section" style="background:#fff">
+    <div class="container">
+        <div style="text-align:center;margin-bottom:3rem">
+            <span class="section-label">How It Works</span>
+            <h2 class="section-title">Built on Trust</h2>
+        </div>
+        <div class="grid-3">
+            <div class="how-step">
+                <div class="how-icon">🔍</div>
+                <h3>We Vet Every Business</h3>
+                <p>Before any business goes live, we verify they're legitimate — checking registrations, insurance, and credentials.</p>
+            </div>
+            <div class="how-step">
+                <div class="how-icon">⭐</div>
+                <h3>Real Customer Reviews</h3>
+                <p>Only genuine customers can leave reviews. Businesses rise through the rankings by earning great feedback.</p>
+            </div>
+            <div class="how-step">
+                <div class="how-icon">🏆</div>
+                <h3>Rank by Reputation</h3>
+                <p>The more five-star reviews a business earns, the higher they climb. Quality — not advertising spend — wins.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Plan pricing -->
+<section class="section" style="background:var(--off-white)">
+    <div class="container">
+        <div style="text-align:center;margin-bottom:2.5rem">
+            <span class="section-label">For Businesses</span>
+            <h2 class="section-title">Join <span data-brand>Monasite</span></h2>
+            <p class="section-sub" style="margin:0 auto">Get listed, get verified, and let your reputation do the work.</p>
+        </div>
+        <div class="grid-3" id="planCards"><div class="loading">Loading…</div></div>
+        <p style="text-align:center;color:var(--text-muted);font-size:0.8rem;margin-top:1.5rem">All plans include listing + review collection. Cancel any time.</p>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section section">
+    <div class="container" style="text-align:center;position:relative">
+        <div class="cta-gold-bar"></div>
+        <span class="section-label">Ready?</span>
+        <h2 class="section-title" style="color:#fff;margin-bottom:0.75rem">Join the directory trusted<br>by local customers</h2>
+        <p style="color:rgba(255,255,255,0.55);margin-bottom:2.25rem;font-weight:300;font-size:1.02rem">Get vetted, collect reviews, and grow your reputation with <span data-brand>Monasite</span>.</p>
+        <a href="/signup" class="btn btn-primary btn-lg">List My Business →</a>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links">
+            <a href="/report?type=issue">Report an Issue</a>
+            <a href="/report?type=trader">Report a Trader</a>
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">For Businesses</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span>. All rights reserved.</div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+function stars(r, count) {
+    const filled = Math.round(r||0);
+    const s = '★'.repeat(filled) + '☆'.repeat(5-filled);
+    return `<span class="stars stars-sm">${s}</span> <span class="rating-num">${(r||0).toFixed(1)}</span> <span class="rating-count">(${count||0})</span>`;
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function bizCard(b) {
+    const initials = (b.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<a href="/business/${esc(b.slug)}" class="biz-card" style="text-decoration:none;color:inherit">
+        <div class="biz-card-cover">
+            ${b.cover_path ? `<img src="/${esc(b.cover_path)}" alt="">` : `<div class="biz-card-cover-placeholder"></div>`}
+            ${b.plan==='featured'?`<span class="featured-tag" style="position:absolute;top:8px;right:8px">Featured</span>`:''}
+        </div>
+        <div class="biz-card-body">
+            <div class="biz-card-logo">${b.logo_path?`<img src="/${esc(b.logo_path)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px" alt="">`:`<span>${initials}</span>`}</div>
+            <div class="biz-card-name">${esc(b.name)}</div>
+            <div class="biz-card-meta">${esc(b.category)}${b.area?' · '+esc(b.area):''}</div>
+            <div class="biz-card-desc">${esc((b.short_desc||b.description||'').slice(0,90))}${(b.short_desc||b.description||'').length>90?'…':''}</div>
+            <div class="biz-card-foot">
+                <div class="rating-wrap">${stars(b.avg_rating, b.review_count)}</div>
+                ${b.verified_at?`<span class="badge badge-verified">✓ Verified</span>`:''}
+            </div>
+        </div>
+    </a>`;
+}
+
+async function loadHome() {
+    try {
+        // Stats
+        const { businesses: all } = await fetch('/api/businesses?sort=rank&page=1').then(r=>r.json());
+
+        // Top rated
+        const { businesses: top } = await fetch('/api/businesses?sort=rank&page=1').then(r=>r.json());
+        const tEl = document.getElementById('topRated');
+        tEl.innerHTML = top.slice(0,6).length ? top.slice(0,6).map(bizCard).join('') : '<div class="empty">No businesses yet.</div>';
+
+        // Featured
+        const { businesses: feat } = await fetch('/api/businesses?plan=featured&sort=rank').then(r=>r.json());
+        const fEl = document.getElementById('featuredList');
+        fEl.innerHTML = feat.length ? feat.slice(0,4).map(bizCard).join('') : '<div class="empty" style="grid-column:1/-1">No featured businesses yet.</div>';
+
+        // Stats bar
+        const totalReviews = top.reduce((s,b)=>s+b.review_count,0);
+        const areas = [...new Set(top.map(b=>b.area).filter(Boolean))];
+        document.getElementById('statsBar').innerHTML = `
+            <div class="stat-item"><div class="val">${top.length}+</div><div class="lbl">Verified Businesses</div></div>
+            <div class="stat-item"><div class="val">${totalReviews}+</div><div class="lbl">Customer Reviews</div></div>
+            <div class="stat-item"><div class="val">${areas.length}+</div><div class="lbl">Areas Covered</div></div>`;
+
+        // Category quick links
+        const cats = ['Builder','Electrician','Plumber','Roofer','Landscaper','Painter & Decorator'];
+        document.getElementById('catQuickLinks').innerHTML = cats.map(c=>
+            `<a href="/directory?category=${encodeURIComponent(c)}" style="font-size:0.78rem;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.07);padding:0.3rem 0.75rem;border-radius:20px;border:1px solid rgba(255,255,255,0.1)">${c}</a>`
+        ).join('');
+
+        // Area dropdown
+        const sel = document.getElementById('searchArea');
+        [...new Set(top.map(b=>b.area).filter(Boolean))].sort().forEach(a => {
+            sel.insertAdjacentHTML('beforeend', `<option value="${esc(a)}">${esc(a)}</option>`);
+        });
+    } catch(e) { console.error(e); }
+
+    // Plan cards
+    try {
+        const s = await fetch('/api/settings').then(r=>r.json());
+        document.getElementById('planCards').innerHTML = [
+            { name:'Starter', key:'starter', price: s.starter_price||'19', features:['Listed in directory','Basic business profile','Collect reviews','Standard ranking boost ×1.0'], nope:['Trusted badge','Widget embed code','Analytics dashboard','Featured placement'] },
+            { name:'Pro', key:'pro', price: s.pro_price||'39', features:['Everything in Starter','✓ Trusted badge embed','✓ Widget for your website','Analytics dashboard','Enhanced ranking boost ×1.1'], nope:['Featured placement'], popular: true },
+            { name:'Featured', key:'featured', price: s.featured_price||'79', features:['Everything in Pro','Pinned to top of results','Priority vetting','Maximum ranking boost ×1.3','Dedicated support'], nope:[] },
+        ].map(p=>`
+            <div class="plan-card${p.popular?' popular':''}">
+                ${p.popular?`<span class="popular-badge">Most Popular</span>`:''}
+                <div class="plan-name">${p.name}</div>
+                <div class="plan-price">£${p.price}<span>/mo</span></div>
+                <ul>
+                    ${p.features.map(f=>`<li>${f}</li>`).join('')}
+                    ${p.nope.map(f=>`<li class="no">${f}</li>`).join('')}
+                </ul>
+                <a href="/signup?plan=${p.key}" class="btn ${p.popular?'btn-primary':'btn-navy'} btn-block">Get Started</a>
+            </div>`).join('');
+    } catch(e) {}
+}
+
+function doSearch() {
+    const q = document.getElementById('searchQ').value.trim();
+    const area = document.getElementById('searchArea').value;
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (area) params.set('area', area);
+    window.location.href = '/directory?' + params.toString();
+}
+document.getElementById('searchQ').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+
+loadHome();
+</script>
+</body>
+</html>

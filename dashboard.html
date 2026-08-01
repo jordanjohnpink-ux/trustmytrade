@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Dashboard — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="loginScreen" style="min-height:100vh;background:var(--navy);display:flex;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;padding:2.5rem 2rem;width:90%;max-width:380px">
+        <div style="text-align:center;margin-bottom:1.8rem">
+            <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--navy)" data-brand>Monasite</div>
+            <h2 style="font-size:1.3rem;margin-top:1rem;margin-bottom:0.2rem">Business Login</h2>
+            <p style="color:var(--text-muted);font-size:0.83rem">Access your dashboard</p>
+        </div>
+        <div class="form-group"><label>Email</label><input id="loginEmail" type="email" placeholder="you@business.co.uk"></div>
+        <div class="form-group"><label>Password</label><input id="loginPass" type="password" placeholder="Your password"></div>
+        <div id="loginErr" style="color:var(--red);font-size:0.8rem;margin-bottom:0.75rem;display:none"></div>
+        <button class="btn btn-navy btn-block" onclick="doLogin()">Sign In</button>
+        <p style="text-align:center;margin-top:1.2rem;font-size:0.8rem;color:var(--text-muted)">Not listed yet? <a href="/signup" style="color:var(--navy);font-weight:600">List your business</a></p>
+    </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashShell" class="dash-shell" style="display:none">
+    <div class="dash-sidebar">
+        <div style="padding:1.2rem 1.2rem 1.5rem;font-family:'Playfair Display',serif;color:#fff;font-size:1rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.75rem" data-brand>
+            Monasite
+        </div>
+        <div id="bizNameSb" style="padding:0 1.2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:0.06em"></div>
+        <button class="dash-nav-item active" id="nav-overview"  onclick="showTab('overview')">📊 Overview</button>
+        <button class="dash-nav-item" id="nav-reviews"   onclick="showTab('reviews')">⭐ Reviews</button>
+        <button class="dash-nav-item" id="nav-profile"   onclick="showTab('profile')">✏️ Edit Profile</button>
+        <button class="dash-nav-item" id="nav-widget"    onclick="showTab('widget')">🔌 Widget & Badge</button>
+        <button class="dash-nav-item" id="nav-analytics" onclick="showTab('analytics')">📈 Analytics</button>
+        <button class="dash-nav-item" id="nav-billing"   onclick="showTab('billing')">💳 Billing</button>
+        <div style="margin-top:auto;padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,0.08)">
+            <button onclick="doLogout()" style="font-size:0.78rem;color:rgba(255,255,255,0.35);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif">Sign Out</button>
+        </div>
+    </div>
+    <div class="dash-body" id="dashBody">
+        <div class="loading">Loading…</div>
+    </div>
+</div>
+
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+const TOKEN_KEY = 'monasiteOwnerToken';
+let token = localStorage.getItem(TOKEN_KEY);
+let ownerData = null;
+let activeTab = 'overview';
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function starsStr(r) { const f=Math.round(r||0); return '★'.repeat(f)+'☆'.repeat(5-f); }
+function fmtDate(s) { if(!s)return''; try{return new Date(s.replace(' ','T')+'Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch{return s;} }
+function toast(msg, err) {
+    const el = document.getElementById('toastEl');
+    el.textContent = msg; el.className = 'show' + (err?' err':'');
+    setTimeout(()=>el.className='', 2800);
+}
+
+async function oapi(path, method, body) {
+    const r = await fetch(path, {
+        method: method||'GET',
+        headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    if (r.status === 401) { doLogout(); throw new Error('Session expired'); }
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error||'Error');
+    return d;
+}
+
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass  = document.getElementById('loginPass').value;
+    const errEl = document.getElementById('loginErr');
+    errEl.style.display = 'none';
+    try {
+        const d = await fetch('/api/owner/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email,password:pass}) });
+        const data = await d.json();
+        if (!d.ok) throw new Error(data.error);
+        token = data.token;
+        localStorage.setItem(TOKEN_KEY, token);
+        ownerData = data;
+        showDash();
+    } catch(e) { errEl.textContent = e.message; errEl.style.display = ''; }
+}
+
+function doLogout() {
+    localStorage.removeItem(TOKEN_KEY);
+    token = null; ownerData = null;
+    document.getElementById('dashShell').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showDash() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashShell').style.display = 'flex';
+    if (ownerData?.business) document.getElementById('bizNameSb').textContent = ownerData.business.name || 'My Business';
+    showTab('overview');
+}
+
+function showTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.dash-nav-item').forEach(el => el.classList.remove('active'));
+    const navEl = document.getElementById('nav-'+tab);
+    if (navEl) navEl.classList.add('active');
+    const loaders = { overview: loadOverview, reviews: loadReviews, profile: loadProfile, widget: loadWidget, analytics: loadAnalytics, billing: loadBilling };
+    (loaders[tab] || loadOverview)().catch(e => {
+        document.getElementById('dashBody').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`;
+    });
+}
+
+async function loadOverview() {
+    const { owner, business: b } = await oapi('/api/owner/me');
+    ownerData = { owner, business: b };
+    document.getElementById('bizNameSb').textContent = b.name;
+    const planBadge = {'starter':'badge-starter','pro':'badge-pro','featured':'badge-featured'}[b.plan]||'badge-starter';
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Welcome back, ${esc(owner.name)}</h2>
+            <span class="badge ${planBadge}">${b.plan} plan</span></div>
+        ${b.promo_expires_at ? `<div style="background:#ede9fe;border:1px solid #ddd6fe;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#5b21b6">
+            🎁 You're on a promotional <strong>${b.plan}</strong> plan until <strong>${fmtDate(b.promo_expires_at)}</strong>, after which you'll return to ${esc(b.pre_promo_plan||'starter')}.
+        </div>` : ''}
+        ${b.billing_status==='past_due' ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#854d0e">
+            ⚠️ <strong>Your last payment failed.</strong> Please update your payment method to keep your listing live.
+            <button class="btn btn-sm" style="background:#854d0e;color:#fff;margin-left:0.5rem" onclick="showTab('billing')">Update Payment →</button>
+        </div>` : ''}
+        ${['unpaid','canceled'].includes(b.billing_status) && b.status==='suspended' ? `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#991b1b">
+            🚫 <strong>Your listing has been suspended</strong> because your subscription payment couldn't be completed. Update your payment method to go live again.
+            <button class="btn btn-sm" style="background:#991b1b;color:#fff;margin-left:0.5rem" onclick="showTab('billing')">Update Payment →</button>
+        </div>` : ''}
+        <div class="stat-grid">
+            <div class="stat-card"><div class="stat-val">${b.review_count||0}</div><div class="stat-lbl">Total Reviews</div></div>
+            <div class="stat-card"><div class="stat-val">${(b.avg_rating||0).toFixed(1)}</div><div class="stat-lbl">Average Rating</div></div>
+            <div class="stat-card" style="color:var(--gold)"><div class="stat-val" style="color:var(--gold)">${starsStr(b.avg_rating)}</div><div class="stat-lbl">Star Rating</div></div>
+            <div class="stat-card"><div class="stat-val">${b.status==='active'?'✓':'⏳'}</div><div class="stat-lbl">${b.status==='active'?'Live':'Pending Vetting'}</div></div>
+        </div>
+        ${b.status==='pending'?`<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.2rem;font-size:0.875rem;color:#713f12">
+            ⏳ <strong>Your listing is pending review.</strong> We'll verify your business and activate it within 1–2 working days. You'll receive an email once you're live.
+        </div>`:''}
+        ${b.status==='active'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="card card-padded">
+                <h4 style="margin-bottom:0.75rem;font-size:0.95rem">Your Profile</h4>
+                <div style="font-size:0.85rem;color:var(--text-mid)">
+                    ${b.phone?`<div>📞 ${esc(b.phone)}</div>`:''}
+                    ${b.email?`<div>✉️ ${esc(b.email)}</div>`:''}
+                    ${b.website?`<div>🌐 ${esc(b.website)}</div>`:''}
+                    ${b.area?`<div>📍 ${esc(b.area)}</div>`:''}
+                </div>
+                <button class="btn btn-outline btn-sm" style="margin-top:0.85rem" onclick="showTab('profile')">Edit Profile →</button>
+            </div>
+            <div class="card card-padded">
+                <h4 style="margin-bottom:0.75rem;font-size:0.95rem">Quick Links</h4>
+                <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    <a href="/business/${esc(b.slug)}" target="_blank" class="btn btn-outline btn-sm">View Live Profile →</a>
+                    <button class="btn btn-outline btn-sm" onclick="showTab('reviews')">Manage Reviews →</button>
+                    ${['pro','featured'].includes(b.plan)?`<button class="btn btn-outline btn-sm" onclick="showTab('widget')">Get Widget Code →</button>`:'<a href="/signup?plan=pro" class="btn btn-primary btn-sm">Upgrade to Pro for Widget →</a>'}
+                </div>
+            </div>
+        </div>`:''}`;
+}
+
+async function loadReviews() {
+    const reviews = await oapi('/api/owner/reviews');
+    const approved = reviews.filter(r=>r.status==='approved');
+    const pending  = reviews.filter(r=>r.status==='pending');
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Reviews</h2></div>
+        ${pending.length?`<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#713f12">
+            ${pending.length} review${pending.length!==1?'s':''} pending admin approval</div>`:''}
+        <div class="card card-padded">
+            ${reviews.length ? reviews.map(r=>`
+                <div style="padding:1rem 0;border-bottom:1px solid var(--border)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.3rem">
+                        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                            <span style="font-weight:600;font-size:0.9rem">${esc(r.reviewer_name)}</span>
+                            <span style="color:var(--gold)">${'★'.repeat(r.rating)+'☆'.repeat(5-r.rating)}</span>
+                            <span class="badge ${r.status==='approved'?'badge-verified':r.status==='pending'?'badge-pending':'badge-rejected'}">${r.status}</span>
+                        </div>
+                        <span style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(r.created_at)}</span>
+                    </div>
+                    ${r.title?`<div style="font-weight:600;font-size:0.88rem;margin-bottom:0.2rem">${esc(r.title)}</div>`:''}
+                    <div style="font-size:0.875rem;color:var(--text-mid)">${esc(r.body)}</div>
+                    ${r.reply?`<div style="background:var(--off-white);border-left:3px solid var(--gold);padding:0.5rem 0.75rem;border-radius:0 6px 6px 0;margin-top:0.5rem;font-size:0.8rem;color:var(--text-mid)"><strong style="display:block;font-size:0.72rem;color:var(--navy);margin-bottom:0.15rem">Your Reply</strong>${esc(r.reply)}</div>`:''}
+                    ${r.status==='approved'&&!r.reply?`
+                    <div style="margin-top:0.65rem;display:flex;gap:0.5rem;align-items:center" id="replyWrap-${r.id}">
+                        <input id="replyTxt-${r.id}" placeholder="Write a reply…" style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.83rem;font-family:'Inter',sans-serif;outline:none">
+                        <button class="btn btn-outline btn-sm" onclick="submitReply(${r.id})">Reply</button>
+                    </div>`:''}
+                </div>`).join('') : '<div class="empty">No reviews yet.</div>'}
+        </div>`;
+}
+
+async function submitReply(id) {
+    const txt = document.getElementById(`replyTxt-${id}`)?.value.trim();
+    if (!txt) return;
+    try {
+        await oapi(`/api/owner/reviews/${id}/reply`, 'POST', { reply: txt });
+        toast('Reply posted');
+        loadReviews();
+    } catch(e) { toast(e.message, true); }
+}
+
+let catMetaByName = {};
+async function loadProfile() {
+    const { business: b } = await oapi('/api/owner/me');
+    const publicCats = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
+    const catMeta = await fetch('/api/categories/meta').then(r=>r.json()).catch(()=>[]);
+    catMetaByName = Object.fromEntries(catMeta.map(c=>[c.name,c]));
+    const catLimits = await fetch('/api/plan-limits').then(r=>r.json()).catch(()=>({ starter:1, pro:3, featured:5 }));
+    const n = catLimits[b.plan] || 1;
+    let currentCats = [];
+    try { currentCats = JSON.parse(b.categories||'[]'); } catch {}
+    if (!currentCats.length && b.category) currentCats = [b.category];
+    // Include any admin-assigned hidden category the owner already has, so it isn't silently dropped on save
+    const cats = [...new Set([...publicCats, ...currentCats.filter(Boolean)])];
+    const catLabels = ['Primary Category', 'Additional Category 2', 'Additional Category 3', 'Additional Category 4', 'Additional Category 5'];
+    const catHints = { starter:'', pro:'', featured:'Pinned/promoted in your primary category only' };
+    const catSelectsHtml = Array.from({length:n}, (_,i) => `
+        <div class="form-group form-full">
+            <label>${catLabels[i]||'Category'}${i===0&&b.plan==='featured'?' <span style="font-size:0.72rem;color:var(--gold);font-weight:600">(pinned here)</span>':''}</label>
+            <select id="pf-cat-${i}" onchange="showProfileCatHint(${i})">
+                <option value="">— None —</option>
+                ${cats.map(c=>`<option value="${esc(c)}"${currentCats[i]===c?' selected':''}>${c}</option>`).join('')}
+            </select>
+            <div id="pf-cat-hint-${i}" class="form-hint" style="color:var(--gold)"></div>
+        </div>`).join('');
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Edit Profile</h2></div>
+        ${b.has_restricted_categories ? `<div style="background:${b.restricted_review_status==='approved'?'#dcfce7':'#fef9c3'};border:1px solid ${b.restricted_review_status==='approved'?'#bbf7d0':'#fde047'};border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:${b.restricted_review_status==='approved'?'#166534':'#854d0e'}">
+            ${b.restricted_review_status==='approved'
+                ? '✓ Your restricted category selection has been approved by an admin.'
+                : '⚠️ One or more of your categories requires manual review. Your listing will stay pending until an admin approves it. Please upload any required documents below.'}
+        </div>` : ''}
+        <div class="card card-padded" style="max-width:640px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+                <div class="form-group form-full"><label>Business Name</label><input id="pf-name" value="${esc(b.name||'')}"></div>
+                ${catSelectsHtml}
+                ${n>1&&catHints[b.plan]?`<p style="font-size:0.78rem;color:var(--text-muted);margin:-0.5rem 0 0.75rem;grid-column:1/-1">${catHints[b.plan]}</p>`:''}
+                <div class="form-group form-full"><label>Short Description</label><input id="pf-short" value="${esc(b.short_desc||'')}" maxlength="120"></div>
+                <div class="form-group form-full"><label>Full Description</label><textarea id="pf-desc" rows="4">${esc(b.description||'')}</textarea></div>
+                <div class="form-group"><label>Area / Region</label><input id="pf-area" value="${esc(b.area||'')}"></div>
+                <div class="form-group"><label>Town / City</label><input id="pf-town" value="${esc(b.town||'')}"></div>
+                <div class="form-group"><label>County</label><input id="pf-county" value="${esc(b.county||'')}"></div>
+                <div class="form-group"><label>Postcode</label><input id="pf-postcode" value="${esc(b.postcode||'')}"></div>
+                <div class="form-group"><label>Phone</label><input id="pf-phone" type="tel" value="${esc(b.phone||'')}"></div>
+                <div class="form-group"><label>Email</label><input id="pf-email" type="email" value="${esc(b.email||'')}"></div>
+                <div class="form-group form-full"><label>Website</label><input id="pf-website" type="url" value="${esc(b.website||'')}"></div>
+            </div>
+            <div style="margin-top:0.5rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+                <button class="btn btn-navy" onclick="saveProfile()">Save Changes</button>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer">Upload Logo <input type="file" accept="image/*" style="display:none" onchange="uploadLogo(this)"></label>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer">Upload Cover Photo <input type="file" accept="image/*" style="display:none" onchange="uploadCover(this)"></label>
+            </div>
+
+            <!-- Gallery upload -->
+            <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border)">
+                <h4 style="margin-bottom:0.25rem;font-size:0.92rem">Photo Gallery</h4>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem">Upload up to 5 photos to showcase your work — visible on your public listing. Click any slot to upload or replace.</p>
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem">
+                    ${(()=>{
+                        let gallery = [];
+                        try { gallery = JSON.parse(b.gallery||'[]'); } catch {}
+                        return Array.from({length:5}, (_,i) => {
+                            const img = gallery[i] || '';
+                            return `<div id="gslot-${i}"
+                                style="aspect-ratio:1;border-radius:8px;border:2px dashed var(--border);overflow:hidden;position:relative;cursor:pointer;background:var(--off-white);display:flex;align-items:center;justify-content:center;transition:border-color 0.15s"
+                                onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'"
+                                onclick="document.getElementById('gfile-${i}').click()">
+                                ${img
+                                    ? `<img src="/${esc(img)}" style="width:100%;height:100%;object-fit:cover;display:block">`
+                                    : `<div style="text-align:center;pointer-events:none"><div style="font-size:1.6rem;color:var(--border);line-height:1">+</div><div style="font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem">Photo ${i+1}</div></div>`}
+                                <input id="gfile-${i}" type="file" accept="image/*" style="display:none" onchange="uploadGallery(${i},this)">
+                            </div>`;
+                        }).join('');
+                    })()}
+                </div>
+            </div>
+
+            ${b.has_restricted_categories ? `
+            <!-- Compliance documents -->
+            <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border)">
+                <h4 style="margin-bottom:0.25rem;font-size:0.92rem">Compliance Documents</h4>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem">${complianceRequirementsText(b)}</p>
+                <div id="complianceDocsList" style="margin-bottom:0.6rem">${complianceDocsHtml(b)}</div>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer">Upload Document <input type="file" accept=".pdf,image/*" style="display:none" onchange="uploadComplianceDoc(this)"></label>
+            </div>` : ''}
+        </div>`;
+    for (let i = 0; i < n; i++) showProfileCatHint(i);
+}
+
+function showProfileCatHint(i) {
+    const hintEl = document.getElementById(`pf-cat-hint-${i}`);
+    if (!hintEl) return;
+    const name = document.getElementById(`pf-cat-${i}`)?.value;
+    const meta = catMetaByName[name];
+    if (!meta || !meta.is_restricted) { hintEl.textContent = ''; return; }
+    const reqs = [meta.requires_documents&&'documents', meta.requires_insurance&&'proof of insurance', meta.requires_qualifications&&'qualifications'].filter(Boolean);
+    hintEl.textContent = `⚠ Requires manual review${reqs.length?' — '+reqs.join(', '):''}`;
+}
+
+function complianceRequirementsText(b) {
+    let reqs = [];
+    try { reqs = JSON.parse(b.restricted_requirements || '[]'); } catch {}
+    const labels = { documents: 'documents', insurance: 'proof of insurance', qualifications: 'qualification certificates' };
+    const list = reqs.map(r => labels[r] || r).join(', ');
+    return list ? `Your selected categories require: ${list}. Upload them here for admin review.` : 'Upload any supporting documents for admin review.';
+}
+
+function complianceDocsHtml(b) {
+    let docs = [];
+    try { docs = JSON.parse(b.compliance_docs || '[]'); } catch {}
+    if (!docs.length) return '<p style="font-size:0.8rem;color:var(--text-muted)">No documents uploaded yet.</p>';
+    return `<ul style="font-size:0.82rem;padding-left:1.1rem;margin:0">${docs.map(d => `
+        <li><a href="/${esc(d.path)}" target="_blank">${esc(d.original_name)}</a> <span style="color:var(--text-muted);font-size:0.75rem">— ${fmtDate(d.uploaded_at)}</span></li>`).join('')}</ul>`;
+}
+
+async function uploadComplianceDoc(input) {
+    const file = input.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('file', file);
+    try {
+        const r = await fetch('/api/owner/upload/compliance-doc', { method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Upload failed');
+        toast('Document uploaded');
+        document.getElementById('complianceDocsList').innerHTML = complianceDocsHtml({ compliance_docs: JSON.stringify(d.docs) });
+    } catch(e) { toast(e.message || 'Upload failed', true); }
+}
+
+async function saveProfile() {
+    try {
+        const categories = [0,1,2,3,4]
+            .map(i => document.getElementById(`pf-cat-${i}`)?.value)
+            .filter(Boolean);
+        await oapi('/api/owner/profile', 'PUT', {
+            name:        document.getElementById('pf-name').value.trim(),
+            categories,
+            short_desc:  document.getElementById('pf-short').value.trim(),
+            description: document.getElementById('pf-desc').value.trim(),
+            area:        document.getElementById('pf-area').value.trim(),
+            town:        document.getElementById('pf-town').value.trim(),
+            county:      document.getElementById('pf-county').value.trim(),
+            postcode:    document.getElementById('pf-postcode').value.trim(),
+            phone:       document.getElementById('pf-phone').value.trim(),
+            email:       document.getElementById('pf-email').value.trim(),
+            website:     document.getElementById('pf-website').value.trim(),
+        });
+        toast('Profile updated');
+    } catch(e) { toast(e.message, true); }
+}
+
+async function uploadLogo(input) {
+    const file = input.files[0]; if(!file) return;
+    const fd = new FormData(); fd.append('image', file);
+    try {
+        await fetch('/api/owner/upload/logo', { method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd });
+        toast('Logo uploaded');
+    } catch(e) { toast('Upload failed', true); }
+}
+async function uploadCover(input) {
+    const file = input.files[0]; if(!file) return;
+    const fd = new FormData(); fd.append('image', file);
+    try {
+        await fetch('/api/owner/upload/cover', { method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd });
+        toast('Cover photo uploaded');
+    } catch(e) { toast('Upload failed', true); }
+}
+
+async function uploadGallery(slot, input) {
+    const file = input.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('image', file);
+    const slotEl = document.getElementById(`gslot-${slot}`);
+    try {
+        const r = await fetch(`/api/owner/upload/gallery/${slot}`, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        slotEl.innerHTML = `<img src="/${d.path}" style="width:100%;height:100%;object-fit:cover;display:block">
+            <input id="gfile-${slot}" type="file" accept="image/*" style="display:none" onchange="uploadGallery(${slot},this)">`;
+        slotEl.onclick = () => document.getElementById(`gfile-${slot}`).click();
+        toast('Photo uploaded');
+    } catch(e) { toast('Upload failed: ' + e.message, true); }
+}
+
+async function loadWidget() {
+    try {
+        const d = await oapi('/api/owner/widget-code');
+        document.getElementById('dashBody').innerHTML = `
+            <div class="admin-head"><h2 class="admin-title">Widget & Trusted Badge</h2></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+                <div class="card card-padded">
+                    <h3 style="margin-bottom:0.3rem;font-size:1rem">Review Widget</h3>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Add this to your website to show your live ${(window.SITE&&window.SITE.name)||'Monasite'} rating and let customers leave reviews.</p>
+                    <div class="code-block" id="widgetCode">${esc(d.widget_code)}<button class="code-copy-btn" onclick="copy('widgetCode')">Copy</button></div>
+                    <div style="margin-top:1rem;background:var(--off-white);border-radius:8px;padding:1rem;font-size:0.8rem;color:var(--text-muted)">
+                        <strong style="display:block;margin-bottom:0.3rem;color:var(--text)">Preview</strong>
+                        The widget on your site will display:<br>
+                        <span style="color:var(--gold)">${starsStr(ownerData?.business?.avg_rating||0)}</span>
+                        <strong>${(ownerData?.business?.avg_rating||0).toFixed(1)}</strong> · ${ownerData?.business?.review_count||0} Reviews
+                        · <span style="color:var(--navy);font-weight:600">Leave a Review</span>
+                    </div>
+                </div>
+                <div class="card card-padded">
+                    <h3 style="margin-bottom:0.3rem;font-size:1rem">Trusted Badge</h3>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Display this on your website to show customers you're verified by ${(window.SITE&&window.SITE.name)||'Monasite'}.</p>
+                    <img src="/api/badge/${esc(d.api_key)}.svg" alt="${(window.SITE&&window.SITE.name)||'Monasite'} Trusted Badge" style="margin-bottom:1rem">
+                    <div class="code-block" id="badgeCode">${esc(d.badge_code)}<button class="code-copy-btn" onclick="copy('badgeCode')">Copy</button></div>
+                </div>
+            </div>
+            <div class="card card-padded" style="margin-top:1.2rem">
+                <h3 style="margin-bottom:0.3rem;font-size:1rem">Your API Key</h3>
+                <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">Use this key to integrate ${(window.SITE&&window.SITE.name)||'Monasite'} reviews into your own applications.</p>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                    <code style="background:var(--light);padding:0.5rem 0.85rem;border-radius:6px;font-size:0.85rem;flex:1">${esc(d.api_key)}</code>
+                    <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${esc(d.api_key)}').then(()=>toast('Copied!'))">Copy Key</button>
+                </div>
+            </div>`;
+    } catch(e) {
+        document.getElementById('dashBody').innerHTML = `
+            <div class="admin-head"><h2 class="admin-title">Widget & Badge</h2></div>
+            <div class="card card-padded" style="text-align:center;padding:3rem">
+                <h3 style="margin-bottom:0.5rem">Pro or Featured Plan Required</h3>
+                <p style="color:var(--text-muted);margin-bottom:1.5rem">Upgrade to Pro or Featured to get your embeddable review widget and trusted badge.</p>
+                <a href="/signup?plan=pro" class="btn btn-primary">Upgrade to Pro →</a>
+            </div>`;
+    }
+}
+
+function copy(id) {
+    navigator.clipboard.writeText(document.getElementById(id).innerText.replace('Copy','').trim())
+        .then(() => toast('Copied to clipboard!'));
+}
+
+async function loadAnalytics() {
+    const { business: b, byMonth, breakdown } = await oapi('/api/owner/analytics');
+    const total = breakdown.reduce((s,r)=>s+r.count, 0);
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Analytics</h2></div>
+        <div class="stat-grid">
+            <div class="stat-card"><div class="stat-val">${b.review_count}</div><div class="stat-lbl">Total Reviews</div></div>
+            <div class="stat-card"><div class="stat-val">${(b.avg_rating||0).toFixed(1)}</div><div class="stat-lbl">Average Rating</div></div>
+            <div class="stat-card"><div class="stat-val">${b.rank_score?.toFixed(2)||'0.00'}</div><div class="stat-lbl">Rank Score</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+            <div class="card card-padded">
+                <h4 style="margin-bottom:0.85rem;font-size:0.95rem">Rating Breakdown</h4>
+                ${[5,4,3,2,1].map(n => {
+                    const c = breakdown.find(r=>r.rating===n)?.count||0;
+                    const pct = total ? Math.round(c/total*100) : 0;
+                    return `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                        <span style="font-size:0.78rem;color:var(--text-muted);width:20px">${n}★</span>
+                        <div style="flex:1;height:10px;background:var(--light);border-radius:5px;overflow:hidden">
+                            <div style="height:100%;width:${pct}%;background:var(--gold);border-radius:5px"></div>
+                        </div>
+                        <span style="font-size:0.75rem;color:var(--text-muted);width:28px;text-align:right">${c}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div class="card card-padded">
+                <h4 style="margin-bottom:0.85rem;font-size:0.95rem">Reviews by Month</h4>
+                ${byMonth.length ? byMonth.map(m=>`
+                    <div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">
+                        <span>${m.month}</span>
+                        <span style="font-weight:600">${m.count} review${m.count!==1?'s':''}</span>
+                        <span style="color:var(--gold)">${'★'.repeat(Math.round(m.avg||0))}</span>
+                    </div>`).join('') : '<div class="empty">No data yet</div>'}
+            </div>
+        </div>`;
+}
+
+async function loadBilling() {
+    const { business: b } = await oapi('/api/owner/me');
+    const planMap = { starter:'Starter — £19/mo', pro:'Pro — £39/mo', featured:'Featured — £79/mo' };
+    const billingMap = {
+        awaiting_payment: { label: 'Awaiting first payment', bg:'#f3f4f6', fg:'#4b5563' },
+        active:           { label: 'Active — payments up to date', bg:'#dcfce7', fg:'#166534' },
+        trialing:         { label: 'Trialing', bg:'#dbeafe', fg:'#1e40af' },
+        past_due:         { label: '⚠️ Payment failed — please update', bg:'#fef9c3', fg:'#854d0e' },
+        unpaid:           { label: '⚠️ Unpaid', bg:'#fee2e2', fg:'#991b1b' },
+        canceled:         { label: '🚫 Subscription cancelled', bg:'#fee2e2', fg:'#991b1b' },
+    };
+    const bs = billingMap[b.billing_status] || billingMap.awaiting_payment;
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Billing & Plan</h2></div>
+        <div class="card card-padded" style="max-width:540px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+                <div>
+                    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.25rem">Current Plan</div>
+                    <div style="font-weight:700;font-size:1.1rem">${planMap[b.plan]||b.plan}</div>
+                </div>
+                <span class="badge ${ {'starter':'badge-starter','pro':'badge-pro','featured':'badge-featured'}[b.plan]||'badge-starter' }">${b.plan}</span>
+            </div>
+            <div style="margin-bottom:1.2rem">
+                <span class="badge" style="background:${bs.bg};color:${bs.fg}">${bs.label}</span>
+                ${b.last_payment_at?`<span style="font-size:0.78rem;color:var(--text-muted);margin-left:0.5rem">Last payment ${fmtDate(b.last_payment_at)}</span>`:''}
+            </div>
+            ${b.stripe_customer_id ? `<button class="btn btn-navy btn-block" onclick="openBillingPortal()">Manage Subscription →</button>`
+            : `<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">Billing is managed offline. Contact us to change your plan.</p>`}
+            <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border)">
+                <h4 style="margin-bottom:0.75rem;font-size:0.9rem">Upgrade Options</h4>
+                <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    ${b.plan!=='pro'?`<a href="/signup?plan=pro" class="btn btn-outline btn-sm">Upgrade to Pro — £39/mo</a>`:''}
+                    ${b.plan!=='featured'?`<a href="/signup?plan=featured" class="btn btn-primary btn-sm">Upgrade to Featured — £79/mo</a>`:''}
+                </div>
+            </div>
+        </div>`;
+}
+
+async function openBillingPortal() {
+    try {
+        const d = await oapi('/api/owner/billing-portal', 'POST');
+        if (d.url) window.location.href = d.url;
+    } catch(e) { toast(e.message, true); }
+}
+
+// Auto-login
+(function() {
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (!t) return;
+    token = t;
+    fetch('/api/owner/me', { headers: { Authorization: 'Bearer ' + t } })
+        .then(r => r.json())
+        .then(d => { ownerData = d; showDash(); })
+        .catch(() => { localStorage.removeItem(TOKEN_KEY); });
+})();
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

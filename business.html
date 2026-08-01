@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/settings.js"></script>
+    <style>
+        /* ── Business profile hero ── */
+        .biz-hero {
+            position: relative;
+            min-height: 400px;
+            background: linear-gradient(135deg, #08111e 0%, #1B2A4A 55%, #0e1f3d 100%);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .biz-hero-bg {
+            position: absolute; inset: 0;
+            background-size: cover; background-position: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .biz-hero-bg.loaded { opacity: 0.28; }
+        /* Decorative radial glow */
+        .biz-hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse at 78% 20%, rgba(201,168,76,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 10% 90%, rgba(201,168,76,0.05) 0%, transparent 45%);
+            pointer-events: none; z-index: 1;
+        }
+        /* Dark gradient so content is always legible */
+        .biz-hero-gradient {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top,
+                rgba(8,17,30,0.97) 0%,
+                rgba(8,17,30,0.72) 38%,
+                rgba(8,17,30,0.28) 72%,
+                rgba(8,17,30,0.08) 100%);
+            z-index: 2;
+        }
+        .biz-hero-content { position: relative; z-index: 3; padding: 0 0 2.75rem; }
+        .biz-hero-inner {
+            max-width: 1100px; margin: 0 auto; padding: 0 1.5rem;
+            display: flex; align-items: flex-end; gap: 1.75rem;
+        }
+        .biz-logo-big {
+            width: 92px; height: 92px; border-radius: 14px;
+            border: 2.5px solid rgba(201,168,76,0.6);
+            background: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 5px rgba(201,168,76,0.08);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem; font-weight: 700; color: var(--navy);
+            flex-shrink: 0; overflow: hidden;
+        }
+        .biz-logo-big img { width: 100%; height: 100%; object-fit: cover; }
+        .biz-title-wrap { flex: 1; min-width: 0; }
+        .biz-eyebrow {
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.22em;
+            text-transform: uppercase; color: rgba(201,168,76,0.75);
+            margin-bottom: 0.4rem;
+        }
+        .biz-title-wrap h1 {
+            color: #fff; font-size: clamp(1.65rem, 3.5vw, 2.5rem);
+            margin-bottom: 0.65rem;
+            text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+        }
+        .biz-meta-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .biz-area-chip {
+            color: rgba(255,255,255,0.52); font-size: 0.82rem;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        /* Hero rating box */
+        .biz-hero-stat {
+            flex-shrink: 0; text-align: center;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem 1.4rem;
+            backdrop-filter: blur(12px);
+        }
+        .hero-rating-big {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.6rem; color: #fff; line-height: 1; font-weight: 700;
+        }
+        .hero-rating-stars { color: var(--gold); font-size: 0.85rem; letter-spacing: 2px; margin: 0.3rem 0 0.15rem; }
+        .hero-rating-count { font-size: 0.68rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
+
+        /* ── Page layout ── */
+        .biz-layout {
+            display: grid;
+            grid-template-columns: 1fr 316px;
+            gap: 1.75rem;
+            align-items: start;
+        }
+
+        /* ── Content cards ── */
+        .biz-content-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.055);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.055);
+            margin-bottom: 1.25rem;
+            overflow: hidden;
+        }
+        .biz-content-card:last-child { margin-bottom: 0; }
+        .biz-card-header {
+            padding: 1.15rem 1.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.055);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .biz-card-header h3 {
+            font-size: 0.95rem; color: var(--navy); letter-spacing: 0.01em;
+        }
+        .biz-card-body { padding: 1.5rem; }
+
+        /* ── Rating breakdown ── */
+        .rating-overview { display: flex; gap: 2.5rem; align-items: center; flex-wrap: wrap; }
+        .rating-overview-left { text-align: center; }
+        .rating-big-number {
+            font-family: 'Playfair Display', serif;
+            font-size: 4.2rem; color: var(--navy); line-height: 1; font-weight: 700;
+        }
+        .rating-overview-right { flex: 1; min-width: 160px; }
+        .rating-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; }
+        .rating-bar:last-child { margin-bottom: 0; }
+        .rating-bar-label { font-size: 0.72rem; color: var(--text-muted); width: 20px; text-align: right; flex-shrink: 0; }
+        .rating-bar-track { flex: 1; height: 6px; background: var(--light); border-radius: 3px; overflow: hidden; }
+        .rating-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dk), var(--gold)); border-radius: 3px; transition: width 0.5s ease; }
+        .rating-bar-count { font-size: 0.7rem; color: var(--text-muted); width: 20px; flex-shrink: 0; }
+
+        /* ── Review cards ── */
+        .review-card {
+            background: var(--off-white);
+            border: 1px solid rgba(0,0,0,0.055);
+            border-radius: 10px;
+            padding: 1.2rem 1.3rem;
+            margin-bottom: 0.75rem;
+        }
+        .review-card:last-child { margin-bottom: 0; }
+        .avatar-ring {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--navy), var(--navy-2));
+            color: var(--gold);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0; letter-spacing: 0.04em;
+        }
+        .review-reply {
+            background: #fff; border-left: 3px solid var(--gold);
+            padding: 0.7rem 1rem; border-radius: 0 8px 8px 0;
+            margin-top: 0.85rem; font-size: 0.82rem; color: var(--text-mid);
+            box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        }
+        .review-reply strong {
+            display: block; margin-bottom: 0.25rem;
+            font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--gold-dk); font-weight: 700;
+        }
+
+        /* ── Verified seal ── */
+        .verified-seal {
+            background: linear-gradient(155deg, #0a1626 0%, #162340 100%);
+            border: 1.5px solid rgba(201,168,76,0.55);
+            border-radius: 12px;
+            padding: 1.75rem 1.5rem;
+            text-align: center;
+            position: relative; overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        .verified-seal::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 50% -5%, rgba(201,168,76,0.2) 0%, transparent 62%);
+            pointer-events: none;
+        }
+        .seal-ring-outer {
+            width: 60px; height: 60px; border-radius: 50%;
+            border: 2px solid rgba(201,168,76,0.5);
+            background: rgba(201,168,76,0.08);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.5rem;
+            position: relative; z-index: 1;
+        }
+        .seal-eyebrow {
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.3em;
+            text-transform: uppercase; color: rgba(201,168,76,0.6);
+            margin-bottom: 0.35rem; position: relative; z-index: 1;
+        }
+        .seal-headline {
+            font-family: 'Playfair Display', serif; color: #fff;
+            font-size: 1rem; margin-bottom: 0;
+            position: relative; z-index: 1;
+        }
+        .seal-gold-line {
+            width: 30px; height: 1px;
+            background: rgba(201,168,76,0.45);
+            margin: 0.9rem auto;
+            position: relative; z-index: 1;
+        }
+        .seal-description {
+            color: rgba(255,255,255,0.4); font-size: 0.7rem;
+            line-height: 1.6; position: relative; z-index: 1;
+        }
+
+        /* ── Sidebar cards ── */
+        .sidebar-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.055);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.055);
+            padding: 1.25rem 1.35rem;
+            margin-bottom: 1rem;
+        }
+        .sidebar-card:last-child { margin-bottom: 0; }
+        .sidebar-card-title {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--text-muted);
+            margin-bottom: 1rem; padding-bottom: 0.65rem;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .contact-row {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.045);
+        }
+        .contact-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .contact-row:first-of-type { padding-top: 0; }
+        .contact-icon {
+            width: 32px; height: 32px; border-radius: 7px;
+            background: var(--off-white);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; flex-shrink: 0; margin-top: 1px;
+        }
+        .contact-label {
+            font-size: 0.63rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.1rem;
+        }
+        .contact-value { font-size: 0.875rem; color: var(--text); word-break: break-word; }
+        .contact-value a { color: var(--navy); }
+        .contact-value a:hover { text-decoration: underline; }
+
+        /* ── Gallery ── */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.65rem;
+        }
+        .gallery-thumb {
+            aspect-ratio: 4/3;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            background: var(--off-white);
+        }
+        .gallery-thumb img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.3s ease;
+            display: block;
+        }
+        .gallery-thumb:hover img { transform: scale(1.05); }
+        .gallery-thumb:hover::after {
+            content: '⤢';
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(8,17,30,0.38); color: #fff;
+            font-size: 1.5rem;
+        }
+        /* Lightbox */
+        .lb-overlay {
+            position: fixed; inset: 0; z-index: 9000;
+            background: rgba(0,0,0,0.92);
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem; animation: lbFade 0.18s ease;
+        }
+        @keyframes lbFade { from { opacity:0 } to { opacity:1 } }
+        .lb-overlay img {
+            max-width: 100%; max-height: 88vh;
+            border-radius: 8px;
+            box-shadow: 0 12px 80px rgba(0,0,0,0.7);
+            animation: lbScale 0.18s ease;
+        }
+        @keyframes lbScale { from { transform: scale(0.94) } to { transform: scale(1) } }
+        .lb-close {
+            position: absolute; top: 1.2rem; right: 1.5rem;
+            color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 50%;
+            width: 38px; height: 38px; font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .lb-close:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .lb-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 50%;
+            width: 44px; height: 44px; font-size: 1.3rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: background 0.15s; user-select: none;
+        }
+        .lb-arrow:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .lb-prev { left: 1.2rem; } .lb-next { right: 1.2rem; }
+
+        /* ── Review form ── */
+        .review-form-wrap {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.055);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.055);
+            overflow: hidden;
+        }
+
+        @media (max-width: 820px) {
+            .biz-layout { grid-template-columns: 1fr; }
+            .biz-hero { min-height: 300px; }
+            .biz-hero-stat { display: none; }
+            .biz-logo-big { width: 72px; height: 72px; font-size: 1.5rem; border-radius: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+            <a href="/dashboard">My Dashboard</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<div class="biz-hero" id="bizHero">
+    <div class="biz-hero-bg" id="bizHeroBg"></div>
+    <div class="biz-hero-gradient"></div>
+    <div class="biz-hero-content">
+        <div class="biz-hero-inner">
+            <div class="biz-logo-big" id="bizLogo"></div>
+            <div class="biz-title-wrap">
+                <div class="biz-eyebrow" id="bizEyebrow"></div>
+                <h1 id="bizName">Loading…</h1>
+                <div class="biz-meta-row" id="bizMetaRow"></div>
+            </div>
+            <div class="biz-hero-stat" id="heroRating" style="display:none">
+                <div class="hero-rating-big" id="heroRatingNum">—</div>
+                <div class="hero-rating-stars" id="heroRatingStars">☆☆☆☆☆</div>
+                <div class="hero-rating-count" id="heroRatingCount"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="gold-rule"></div>
+
+<!-- Breadcrumb -->
+<div style="background:#fff;border-bottom:1px solid rgba(0,0,0,0.055)">
+    <div class="container" style="padding:0.7rem 1.5rem">
+        <a href="/directory" style="font-size:0.78rem;color:var(--text-muted);display:inline-flex;align-items:center;gap:0.35rem;transition:color 0.15s"
+           onmouseover="this.style.color='var(--navy)'" onmouseout="this.style.color='var(--text-muted)'">
+            ← Back to Directory
+        </a>
+    </div>
+</div>
+
+<!-- Body -->
+<div style="background:var(--off-white);padding:2rem 0 5rem">
+    <div class="container">
+        <div class="biz-layout" id="bizLayout">
+
+            <!-- ── Main column ── -->
+            <div>
+                <!-- About -->
+                <div class="biz-content-card">
+                    <div class="biz-card-header">
+                        <h3>About This Business</h3>
+                    </div>
+                    <div class="biz-card-body">
+                        <div id="bizDesc" style="font-size:0.9rem;color:var(--text-mid);line-height:1.85"></div>
+                    </div>
+                </div>
+
+                <!-- Photo gallery (hidden until images loaded) -->
+                <div class="biz-content-card" id="galleryCard" style="display:none">
+                    <div class="biz-card-header">
+                        <h3>Photo Gallery</h3>
+                    </div>
+                    <div class="biz-card-body">
+                        <div class="gallery-grid" id="galleryGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Ratings overview -->
+                <div class="biz-content-card" id="ratingCard">
+                    <div class="biz-card-header">
+                        <h3>Ratings &amp; Reviews</h3>
+                    </div>
+                    <div class="biz-card-body">
+                        <div class="rating-overview">
+                            <div class="rating-overview-left">
+                                <div class="rating-big-number" id="avgBig">—</div>
+                                <div class="stars" id="avgStars" style="font-size:1.05rem;margin:0.3rem 0">☆☆☆☆☆</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted)" id="totalReviews"></div>
+                            </div>
+                            <div class="rating-overview-right" id="ratingBars"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reviews list -->
+                <div class="biz-content-card">
+                    <div class="biz-card-header">
+                        <h3>Customer Reviews</h3>
+                    </div>
+                    <div class="biz-card-body" style="padding-top:0.85rem">
+                        <div id="reviewsList"><div class="loading">Loading reviews…</div></div>
+                    </div>
+                </div>
+
+                <!-- Leave a review -->
+                <div class="review-form-wrap">
+                    <div class="biz-card-header">
+                        <h3>Leave a Review</h3>
+                    </div>
+                    <div class="biz-card-body">
+                        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.1rem">Share your experience to help others find trusted local businesses.</p>
+                        <div class="star-input" id="starInput">
+                            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+                        </div>
+                        <div id="starErr" style="color:var(--red);font-size:0.78rem;display:none;margin-bottom:0.5rem">Please select a rating</div>
+                        <div class="form-grid-2">
+                            <div class="form-group"><label>Your Name *</label><input id="rvName" placeholder="Jane Smith"></div>
+                            <div class="form-group"><label>Email (private)</label><input id="rvEmail" type="email" placeholder="jane@example.com"></div>
+                        </div>
+                        <div class="form-group"><label>Review Title</label><input id="rvTitle" placeholder="e.g. Excellent service, highly recommend!"></div>
+                        <div class="form-group"><label>Your Review</label><textarea id="rvBody" rows="4" placeholder="Tell others about your experience…"></textarea></div>
+                        <button class="btn btn-primary" onclick="submitReview()" id="rvBtn">Submit Review</button>
+                        <div id="rvSuccess" style="display:none;margin-top:0.85rem;padding:0.9rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;color:#166534;font-size:0.85rem">
+                            ✓ Review submitted — it will appear once approved by our team.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Sidebar ── -->
+            <div>
+                <!-- Verified seal (shown for verified Pro/Featured businesses) -->
+                <div id="badgeWrap" style="display:none">
+                    <div class="verified-seal">
+                        <div class="seal-ring-outer">✓</div>
+                        <div class="seal-eyebrow" data-brand>Monasite</div>
+                        <div class="seal-headline">Verified &amp; Trusted</div>
+                        <div class="seal-gold-line"></div>
+                        <div class="seal-description">This business has been independently vetted and verified by the <span data-brand>Monasite</span> team.</div>
+                    </div>
+                </div>
+
+                <!-- Contact -->
+                <div class="sidebar-card" id="bizContact"></div>
+
+                <!-- Owner link -->
+                <div class="sidebar-card" style="text-align:center">
+                    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.9rem;line-height:1.6">Is this your business? Manage your listing, respond to reviews, and update your profile.</p>
+                    <a href="/dashboard" class="btn btn-outline btn-sm btn-block">Owner Dashboard →</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links">
+            <a href="/report?type=issue">Report an Issue</a>
+            <a href="/report?type=trader" id="reportTraderLink">Report a Trader</a>
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">List Your Business</a>
+        </div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span>. All rights reserved.</div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+const slug = location.pathname.split('/').pop();
+let selectedRating = 0;
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(s) {
+    if (!s) return '';
+    try { return new Date(s.replace(' ','T')+'Z').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }
+    catch { return s; }
+}
+function starsStr(r) { const f = Math.round(r||0); return '★'.repeat(f) + '☆'.repeat(5-f); }
+function getInitials(name) {
+    return (name||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+
+// Star rating input
+const starEls = document.querySelectorAll('#starInput span');
+starEls.forEach(el => {
+    el.addEventListener('click', () => {
+        selectedRating = parseInt(el.dataset.v);
+        starEls.forEach((s,i) => s.className = i < selectedRating ? 'filled' : '');
+        document.getElementById('starErr').style.display = 'none';
+    });
+    el.addEventListener('mouseover', () => {
+        const v = parseInt(el.dataset.v);
+        starEls.forEach((s,i) => s.style.color = i < v ? 'var(--gold)' : 'var(--border)');
+    });
+});
+document.getElementById('starInput').addEventListener('mouseleave', () => {
+    starEls.forEach((s,i) => s.style.color = i < selectedRating ? 'var(--gold)' : 'var(--border)');
+});
+
+async function loadBusiness() {
+    try {
+        const b = await fetch(`/api/businesses/${slug}`).then(r => {
+            if (!r.ok) throw new Error('Not found');
+            return r.json();
+        });
+
+        document.title = b.name + ' — ' + ((window.SITE && window.SITE.name) || 'Monasite');
+        const reportLink = document.getElementById('reportTraderLink');
+        if (reportLink) reportLink.href = `/report?type=trader&trader=${encodeURIComponent(b.name)}`;
+
+        // Hero cover background
+        if (b.cover_path) {
+            const bg = document.getElementById('bizHeroBg');
+            bg.style.backgroundImage = `url('/${esc(b.cover_path)}')`;
+            setTimeout(() => bg.classList.add('loaded'), 50);
+        }
+
+        // Logo / initials
+        document.getElementById('bizLogo').innerHTML = b.logo_path
+            ? `<img src="/${esc(b.logo_path)}" alt="${esc(b.name)}">`
+            : getInitials(b.name);
+
+        // Category eyebrow
+        if (b.category) document.getElementById('bizEyebrow').textContent = b.category;
+
+        // Title
+        document.getElementById('bizName').textContent = b.name;
+
+        // Meta row badges
+        const metaParts = [];
+        if (b.area || b.town) {
+            metaParts.push(`<span class="biz-area-chip">📍 ${esc(b.town ? b.town + (b.county ? ', ' + b.county : '') : b.area)}</span>`);
+        }
+        if (b.verified_at) metaParts.push(`<span class="badge badge-verified">✓ Verified</span>`);
+        if (b.plan === 'featured') metaParts.push(`<span class="badge badge-featured">⭐ Featured Member</span>`);
+        if (b.plan === 'pro') metaParts.push(`<span class="badge badge-pro">◆ Pro Member</span>`);
+        document.getElementById('bizMetaRow').innerHTML = metaParts.join('');
+
+        // About
+        document.getElementById('bizDesc').innerHTML =
+            (b.description || 'No description provided.').replace(/\n/g, '<br>');
+
+        // Contact sidebar
+        const contactParts = [`<div class="sidebar-card-title">Contact Information</div>`];
+        if (b.phone) contactParts.push(`
+            <div class="contact-row">
+                <div class="contact-icon">📞</div>
+                <div><div class="contact-label">Phone</div><div class="contact-value">${esc(b.phone)}</div></div>
+            </div>`);
+        if (b.email) contactParts.push(`
+            <div class="contact-row">
+                <div class="contact-icon">✉️</div>
+                <div><div class="contact-label">Email</div><div class="contact-value"><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></div></div>
+            </div>`);
+        if (b.website) contactParts.push(`
+            <div class="contact-row">
+                <div class="contact-icon">🌐</div>
+                <div><div class="contact-label">Website</div><div class="contact-value"><a href="${esc(b.website)}" target="_blank" rel="noopener noreferrer">${esc(b.website.replace(/^https?:\/\//,''))}</a></div></div>
+            </div>`);
+        const addrParts = [b.town, b.county, b.postcode].filter(Boolean);
+        if (addrParts.length) contactParts.push(`
+            <div class="contact-row">
+                <div class="contact-icon">📍</div>
+                <div><div class="contact-label">Location</div><div class="contact-value">${esc(addrParts.join(', '))}</div></div>
+            </div>`);
+        if (contactParts.length === 1) contactParts.push(`<p style="font-size:0.82rem;color:var(--text-muted)">No contact details available.</p>`);
+        document.getElementById('bizContact').innerHTML = contactParts.join('');
+
+        // Verified seal — show for verified Pro/Featured
+        if (b.verified_at && ['pro','featured'].includes(b.plan)) {
+            document.getElementById('badgeWrap').style.display = '';
+        }
+
+        // Gallery
+        let gallery = [];
+        try { gallery = JSON.parse(b.gallery || '[]'); } catch {}
+        gallery = gallery.filter(Boolean);
+        if (gallery.length) {
+            document.getElementById('galleryCard').style.display = '';
+            document.getElementById('galleryGrid').innerHTML = gallery.map((src, i) =>
+                `<div class="gallery-thumb" onclick="openLightbox(${i})" data-src="/${esc(src)}">
+                    <img src="/${esc(src)}" alt="Photo ${i+1}" loading="lazy">
+                </div>`
+            ).join('');
+            window._gallery = gallery;
+        }
+
+        loadReviews();
+    } catch(e) {
+        document.getElementById('bizName').textContent = 'Business not found';
+        document.getElementById('bizEyebrow').textContent = '';
+    }
+}
+
+async function loadReviews() {
+    try {
+        const reviews = await fetch(`/api/businesses/${slug}/reviews`).then(r => r.json());
+        const total = reviews.length;
+        const avg = total ? reviews.reduce((s,r) => s + r.rating, 0) / total : 0;
+
+        // Rating summary
+        document.getElementById('avgBig').textContent = total ? avg.toFixed(1) : '—';
+        document.getElementById('avgStars').textContent = starsStr(avg);
+        document.getElementById('totalReviews').textContent = `${total} review${total !== 1 ? 's' : ''}`;
+
+        // Hero rating box
+        if (total > 0) {
+            document.getElementById('heroRating').style.display = '';
+            document.getElementById('heroRatingNum').textContent = avg.toFixed(1);
+            document.getElementById('heroRatingStars').textContent = starsStr(avg);
+            document.getElementById('heroRatingCount').textContent = `${total} review${total !== 1 ? 's' : ''}`;
+        }
+
+        // Rating bars
+        const breakdown = [5,4,3,2,1].map(n => ({ n, count: reviews.filter(r => r.rating === n).length }));
+        document.getElementById('ratingBars').innerHTML = breakdown.map(({n, count}) => `
+            <div class="rating-bar">
+                <div class="rating-bar-label">${n}★</div>
+                <div class="rating-bar-track">
+                    <div class="rating-bar-fill" style="width:${total ? Math.round(count/total*100) : 0}%"></div>
+                </div>
+                <div class="rating-bar-count">${count}</div>
+            </div>`).join('');
+
+        // Reviews list
+        const el = document.getElementById('reviewsList');
+        if (!reviews.length) {
+            el.innerHTML = '<div class="empty">No reviews yet — be the first to share your experience!</div>';
+            return;
+        }
+        el.innerHTML = reviews.map(r => {
+            const init = getInitials(r.reviewer_name);
+            return `
+            <div class="review-card">
+                <div style="display:flex;gap:0.9rem;align-items:flex-start">
+                    <div class="avatar-ring">${esc(init)}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.2rem">
+                            <span style="font-weight:600;font-size:0.9rem;color:var(--text)">${esc(r.reviewer_name)}</span>
+                            <span style="font-size:0.72rem;color:var(--text-muted)">${fmtDate(r.created_at)}</span>
+                        </div>
+                        <span class="stars stars-sm">${starsStr(r.rating)}</span>
+                    </div>
+                </div>
+                ${r.title ? `<div style="font-weight:600;font-size:0.9rem;margin-top:0.7rem;color:var(--text)">${esc(r.title)}</div>` : ''}
+                <div style="font-size:0.875rem;color:var(--text-mid);line-height:1.7;margin-top:0.4rem">${esc(r.body)}</div>
+                ${r.reply ? `<div class="review-reply"><strong>Owner's Response</strong>${esc(r.reply)}</div>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+
+async function submitReview() {
+    if (!selectedRating) { document.getElementById('starErr').style.display = ''; return; }
+    const name = document.getElementById('rvName').value.trim();
+    if (!name) { alert('Please enter your name.'); return; }
+    const btn = document.getElementById('rvBtn');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+        const r = await fetch('/api/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                slug,
+                reviewer_name:  name,
+                reviewer_email: document.getElementById('rvEmail').value.trim(),
+                rating:         selectedRating,
+                title:          document.getElementById('rvTitle').value.trim(),
+                body:           document.getElementById('rvBody').value.trim(),
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        document.getElementById('rvSuccess').style.display = '';
+        document.getElementById('rvBtn').style.display = 'none';
+    } catch(e) {
+        alert(e.message);
+        btn.disabled = false; btn.textContent = 'Submit Review';
+    }
+}
+
+let lbIndex = 0;
+function openLightbox(i) {
+    lbIndex = i;
+    const gallery = window._gallery || [];
+    if (!gallery.length) return;
+    const existing = document.getElementById('lbOverlay');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.className = 'lb-overlay'; el.id = 'lbOverlay';
+    el.innerHTML = `
+        <button class="lb-close" onclick="closeLightbox()">✕</button>
+        ${gallery.length > 1 ? `<button class="lb-arrow lb-prev" onclick="lbNav(-1)">‹</button>` : ''}
+        <img src="/${esc(gallery[i])}" alt="Photo ${i+1}" id="lbImg">
+        ${gallery.length > 1 ? `<button class="lb-arrow lb-next" onclick="lbNav(1)">›</button>` : ''}`;
+    document.body.appendChild(el);
+    el.addEventListener('click', e => { if (e.target === el) closeLightbox(); });
+}
+function closeLightbox() { document.getElementById('lbOverlay')?.remove(); }
+function lbNav(dir) {
+    const gallery = window._gallery || [];
+    lbIndex = (lbIndex + dir + gallery.length) % gallery.length;
+    document.getElementById('lbImg').src = '/' + esc(gallery[lbIndex]);
+}
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('lbOverlay')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowRight') lbNav(1);
+    if (e.key === 'ArrowLeft') lbNav(-1);
+});
+
+loadBusiness();
+</script>
+</body>
+</html>

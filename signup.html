@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Your Business — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/settings.js"></script>
+    <style>
+        .signup-outer { background: var(--off-white); min-height: calc(100vh - 64px); }
+        .signup-wrap  { max-width: 700px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+        /* Progress bar */
+        .step-progress { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 2.5rem; }
+        .step-progress-item { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; position: relative; }
+        .step-progress-line {
+            height: 2px; width: 4rem; background: var(--border);
+            transition: background 0.3s;
+            margin-bottom: 1.4rem;
+        }
+        .step-progress-line.done { background: var(--navy); }
+        .step-circle { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--border); background: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600;
+            color: var(--text-muted); transition: all 0.25s; }
+        .step-circle.active { border-color: var(--navy); background: var(--navy); color: #fff; }
+        .step-circle.done  { border-color: var(--navy); background: var(--navy); color: var(--gold); font-size: 0.85rem; }
+        .step-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); white-space: nowrap; }
+        .step-label.active { color: var(--navy); }
+
+        /* Plan cards — three across on desktop */
+        .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 0; }
+        @media (max-width: 640px) { .plan-grid { grid-template-columns: 1fr; } }
+        .plan-card {
+            border: 2px solid var(--border); border-radius: 14px; padding: 1.5rem 1.25rem 1.35rem;
+            cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+            position: relative; background: #fff; display: flex; flex-direction: column;
+        }
+        .plan-card:hover { border-color: rgba(201,168,76,0.5); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+        .plan-card.selected { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(27,42,74,0.1), 0 6px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .plan-card.popular { border-color: var(--gold); }
+        .plan-card.popular.selected { border-color: var(--navy); }
+        .plan-card input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+        .plan-popular-badge {
+            position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+            background: var(--gold); color: var(--navy);
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+            padding: 0.18rem 0.65rem; border-radius: 20px; white-space: nowrap;
+        }
+        .plan-name { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.65rem; }
+        .plan-price { display: flex; align-items: baseline; gap: 2px; line-height: 1; margin-bottom: 0.2rem; }
+        .plan-price-currency { font-family: 'Inter', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--navy); }
+        .plan-price-amount { font-family: 'Playfair Display', serif; font-size: 3rem; color: var(--navy); line-height: 1; }
+        .plan-price-period { font-family: 'Inter', sans-serif; font-size: 0.72rem; color: var(--text-muted); margin-left: 2px; align-self: flex-end; padding-bottom: 0.25rem; }
+        .plan-billing { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 1.1rem; }
+        .plan-divider { height: 1px; background: var(--border); margin: 0.85rem 0; }
+        .plan-features { list-style: none; padding: 0; margin: 0; flex: 1; }
+        .plan-features li { font-size: 0.8rem; color: var(--text-mid); padding: 0.28rem 0; display: flex; align-items: flex-start; gap: 0.5rem; }
+        .plan-features li::before { content: '✓'; color: var(--navy); font-weight: 700; font-size: 0.72rem; margin-top: 0.05rem; flex-shrink: 0; }
+        .plan-features li.dim { color: var(--text-muted); }
+        .plan-features li.dim::before { color: var(--border); }
+        .plan-select-btn {
+            margin-top: auto; padding: 1.1rem 0 0.6rem; width: 100%; border-radius: 7px;
+            border: 2px solid var(--border); background: transparent; font-size: 0.8rem;
+            font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted);
+            cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .plan-card.selected .plan-select-btn { border-color: var(--navy); background: var(--navy); color: #fff; }
+
+        /* Step panels */
+        .step-panel { display: none; }
+        .step-panel.active { display: block; }
+
+        /* Honest note */
+        .honest-note {
+            background: linear-gradient(135deg, #0c1726, #1B2A4A);
+            border-radius: 10px; padding: 1rem 1.2rem;
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            margin-bottom: 1.75rem;
+        }
+        .honest-note-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+        .honest-note p { font-size: 0.8rem; color: rgba(255,255,255,0.7); line-height: 1.55; margin: 0; }
+        .honest-note strong { color: rgba(201,168,76,0.9); }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup" style="color:#fff">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+        </div>
+    </div>
+</nav>
+
+<div class="signup-outer">
+<div class="signup-wrap">
+
+    <div style="text-align:center;margin-bottom:2rem">
+        <h1 style="font-size:2rem;margin-bottom:0.4rem">Join <span data-brand>Monasite</span></h1>
+        <p style="color:var(--text-muted);font-size:0.9rem">Verified listings for serious local businesses. Choose your plan first — no hidden fees, no surprises.</p>
+    </div>
+
+    <!-- Progress -->
+    <div class="step-progress" id="stepProgress">
+        <div class="step-progress-item">
+            <div class="step-circle active" id="sc1">1</div>
+            <span class="step-label active" id="sl1">Plan</span>
+        </div>
+        <div class="step-progress-line" id="pl1"></div>
+        <div class="step-progress-item">
+            <div class="step-circle" id="sc2">2</div>
+            <span class="step-label" id="sl2">Business</span>
+        </div>
+        <div class="step-progress-line" id="pl2"></div>
+        <div class="step-progress-item">
+            <div class="step-circle" id="sc3">3</div>
+            <span class="step-label" id="sl3">Location</span>
+        </div>
+        <div class="step-progress-line" id="pl3"></div>
+        <div class="step-progress-item">
+            <div class="step-circle" id="sc4">4</div>
+            <span class="step-label" id="sl4">Account</span>
+        </div>
+    </div>
+
+    <!-- ── Step 1: Plan ── -->
+    <div class="step-panel active" id="step1">
+        <div class="honest-note">
+            <div class="honest-note-icon">🔒</div>
+            <p>We believe in being upfront. <strong>All prices are shown below</strong> — select your plan, then fill in your details. Payment is only taken once your listing is approved.</p>
+        </div>
+
+        <div class="plan-grid" id="planGrid">
+            <!-- Starter -->
+            <div class="plan-card selected" id="card-starter" onclick="selectPlan('starter')">
+                <input type="radio" name="plan" value="starter" checked id="planStarter">
+                <div class="plan-name">Starter</div>
+                <div class="plan-price"><span class="plan-price-currency">£</span><span class="plan-price-amount" id="priceStarterNum">19</span><span class="plan-price-period">/mo</span></div>
+                <div class="plan-billing">Billed monthly · cancel anytime</div>
+                <div class="plan-divider"></div>
+                <ul class="plan-features">
+                    <li>Directory listing</li>
+                    <li>Collect &amp; display reviews</li>
+                    <li>Standard ranking boost ×1.0</li>
+                    <li>1 trade category</li>
+                    <li class="dim">Trusted Badge</li>
+                    <li class="dim">Widget embed code</li>
+                    <li class="dim">Pinned placement</li>
+                </ul>
+                <div class="plan-select-btn" id="btn-starter">Selected</div>
+            </div>
+
+            <!-- Pro -->
+            <div class="plan-card popular" id="card-pro" onclick="selectPlan('pro')">
+                <input type="radio" name="plan" value="pro" id="planPro">
+                <div class="plan-popular-badge">Most Popular</div>
+                <div class="plan-name">Pro</div>
+                <div class="plan-price"><span class="plan-price-currency">£</span><span class="plan-price-amount" id="priceProNum">39</span><span class="plan-price-period">/mo</span></div>
+                <div class="plan-billing">Billed monthly · cancel anytime</div>
+                <div class="plan-divider"></div>
+                <ul class="plan-features">
+                    <li>Everything in Starter</li>
+                    <li>Trusted &amp; Verified Badge</li>
+                    <li>Widget embed code</li>
+                    <li>Dashboard analytics</li>
+                    <li>3 trade categories</li>
+                    <li>Enhanced ranking boost ×1.1</li>
+                    <li class="dim">Pinned placement</li>
+                    <li class="dim">Priority vetting</li>
+                </ul>
+                <div class="plan-select-btn" id="btn-pro">Select Pro</div>
+            </div>
+
+            <!-- Featured -->
+            <div class="plan-card" id="card-featured" onclick="selectPlan('featured')">
+                <input type="radio" name="plan" value="featured" id="planFeatured">
+                <div class="plan-name">Featured</div>
+                <div class="plan-price"><span class="plan-price-currency">£</span><span class="plan-price-amount" id="priceFeaturedNum">79</span><span class="plan-price-period">/mo</span></div>
+                <div class="plan-billing">Billed monthly · cancel anytime</div>
+                <div class="plan-divider"></div>
+                <ul class="plan-features">
+                    <li>Everything in Pro</li>
+                    <li>Pinned to top of results</li>
+                    <li>Priority vetting</li>
+                    <li>5 trade categories</li>
+                    <li>Featured member badge</li>
+                    <li>Maximum ranking boost ×1.3</li>
+                    <li>Dedicated account review</li>
+                </ul>
+                <div class="plan-select-btn" id="btn-featured">Select Featured</div>
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem;text-align:center">
+            <button class="btn btn-primary" style="min-width:220px;padding:0.85rem 2rem;font-size:1rem" onclick="goStep(2)">
+                Continue with <span id="selectedPlanLabel">Starter</span> →
+            </button>
+            <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">
+                Payment taken only after your listing is reviewed and approved (1–2 business days).
+            </p>
+        </div>
+    </div>
+
+    <!-- ── Step 2: Business ── -->
+    <div class="step-panel card card-padded" id="step2">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:0.5rem">
+            <h3 style="margin:0">Your Business</h3>
+            <span class="badge badge-starter" id="planBadge2">Starter</span>
+        </div>
+        <div class="form-group"><label>Business Name *</label><input id="f-name" placeholder="e.g. Smith's Plumbing Services"></div>
+        <div class="form-group"><label>Short Description <span style="font-size:0.75rem;color:var(--text-muted)">(shown in directory listings)</span></label>
+            <input id="f-short" placeholder="e.g. Award-winning plumbers serving Bristol since 2005" maxlength="120">
+            <div class="form-hint">Max 120 characters</div>
+        </div>
+        <div class="form-group"><label>Full Description</label>
+            <textarea id="f-desc" rows="4" placeholder="Tell customers about your business, specialities, experience…"></textarea>
+        </div>
+
+        <!-- Category selects — count driven by plan -->
+        <div id="catSection" style="margin-top:0.25rem">
+            <p id="catHint" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.65rem"></p>
+            <div id="catSelects"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:1rem">
+            <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
+            <button class="btn btn-navy" onclick="goStep(3)">Next → Location</button>
+        </div>
+    </div>
+
+    <!-- ── Step 3: Location ── -->
+    <div class="step-panel card card-padded" id="step3">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:0.5rem">
+            <h3 style="margin:0">Location &amp; Contact</h3>
+            <span class="badge badge-starter" id="planBadge3">Starter</span>
+        </div>
+        <div class="form-grid-2">
+            <div class="form-group"><label>Postcode</label><input id="f-postcode" placeholder="e.g. BS1 1AA" autocomplete="postal-code">
+                <div class="form-hint" id="postcodeHint"></div>
+            </div>
+            <div class="form-group"><label>Town / City *</label><input id="f-town" placeholder="e.g. Bristol"></div>
+            <div class="form-group"><label>County</label><input id="f-county" placeholder="e.g. Avon"></div>
+            <div class="form-group"><label>Area / Region *</label><input id="f-area" placeholder="e.g. South West"></div>
+            <div class="form-group"><label>Phone Number</label><input id="f-phone" type="tel" placeholder="07700 000000"></div>
+            <div class="form-group"><label>Business Email</label><input id="f-email" type="email" placeholder="info@mybusiness.co.uk"></div>
+            <div class="form-group form-full"><label>Website</label><input id="f-website" type="url" placeholder="https://www.mybusiness.co.uk"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.5rem">
+            <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+            <button class="btn btn-navy" onclick="goStep(4)">Next → Create Account</button>
+        </div>
+    </div>
+
+    <!-- ── Step 4: Account ── -->
+    <div class="step-panel card card-padded" id="step4">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;flex-wrap:wrap;gap:0.5rem">
+            <h3 style="margin:0">Create Your Account</h3>
+            <span class="badge badge-starter" id="planBadge4">Starter</span>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.2rem">This gives you access to your business dashboard to upload photos, respond to reviews and manage your listing.</p>
+        <div class="form-group"><label>Your Name *</label><input id="f-ownername" placeholder="Jane Smith"></div>
+        <div class="form-group"><label>Email Address *</label><input id="f-owneremail" type="email" placeholder="jane@mybusiness.co.uk"></div>
+        <div class="form-group"><label>Password *</label>
+            <input id="f-ownerpass" type="password" placeholder="At least 8 characters">
+            <div class="form-hint">You'll use this to log in to your dashboard</div>
+        </div>
+
+        <!-- Discount code -->
+        <div style="margin:1rem 0 0.5rem">
+            <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:0.4rem">Discount Code</label>
+            <div style="display:flex;gap:0.5rem">
+                <input id="discountInput" placeholder="Enter code (optional)" style="flex:1;text-transform:uppercase" oninput="clearDiscount()">
+                <button type="button" class="btn btn-outline" onclick="applyDiscount()" id="discountBtn">Apply</button>
+            </div>
+            <div id="discountMsg" style="font-size:0.78rem;margin-top:0.35rem;display:none"></div>
+        </div>
+
+        <!-- Summary before submitting -->
+        <div id="summaryBox" style="background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem;margin:1rem 0;font-size:0.83rem;color:var(--text-mid)"></div>
+
+        <div id="errMsg" style="display:none;color:var(--red);font-size:0.82rem;margin:0.75rem 0;padding:0.65rem;background:#fee2e2;border-radius:6px"></div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:0.5rem;align-items:center">
+            <button class="btn btn-outline" onclick="goStep(3)">← Back</button>
+            <button class="btn btn-primary" onclick="submitSignup()" id="submitBtn">Submit Application →</button>
+        </div>
+        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:0.75rem">
+            Your listing is reviewed within 1–2 business days. Payment begins only once approved.
+        </p>
+    </div>
+
+    <!-- ── Success ── -->
+    <div class="step-panel card card-padded" id="stepDone" style="text-align:center;padding:3rem 2rem">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--navy),#2a3f6e);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:1.6rem">✓</div>
+        <h2 style="margin-bottom:0.5rem;color:var(--navy)">Application Submitted!</h2>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem;max-width:400px;margin-left:auto;margin-right:auto">We'll verify your business details and be in touch within 1–2 business days. You'll receive an email once your listing is live.</p>
+        <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+            <a href="/" class="btn btn-outline">Back to Home</a>
+            <a href="/dashboard" class="btn btn-navy">Go to Dashboard</a>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links" style="margin-bottom:0.4rem"><a href="/report?type=issue">Report an Issue</a> · <a href="/report?type=trader">Report a Trader</a></div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span></div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+let selectedPlan = 'starter';
+let allCats = [];
+let appliedDiscount = null;  // { code, type, value, label }
+let CAT_LIMITS = { starter:1, pro:3, featured:5 };
+const PLAN_LABELS = { starter:'Starter', pro:'Pro', featured:'Featured' };
+const PLAN_BADGE  = { starter:'badge-starter', pro:'badge-pro', featured:'badge-featured' };
+
+function setProgress(n) {
+    [1,2,3,4].forEach(i => {
+        const circle = document.getElementById('sc'+i);
+        const label  = document.getElementById('sl'+i);
+        if (i < n)  { circle.className = 'step-circle done'; circle.textContent = '✓'; }
+        else if (i === n) { circle.className = 'step-circle active'; circle.textContent = i; }
+        else        { circle.className = 'step-circle'; circle.textContent = i; }
+        label.className = 'step-label' + (i === n ? ' active' : '');
+    });
+    [1,2,3].forEach(i => {
+        document.getElementById('pl'+i).className = 'step-progress-line' + (i < n ? ' done' : '');
+    });
+}
+
+let postcodeLookupTimer = null;
+document.getElementById('f-postcode').addEventListener('input', (e) => {
+    clearTimeout(postcodeLookupTimer);
+    const raw = e.target.value.trim();
+    const hint = document.getElementById('postcodeHint');
+    if (raw.replace(/\s/g, '').length < 5) { hint.textContent = ''; return; }
+    postcodeLookupTimer = setTimeout(() => lookupPostcode(raw), 400);
+});
+
+async function lookupPostcode(raw) {
+    const hint = document.getElementById('postcodeHint');
+    hint.textContent = 'Looking up postcode…';
+    try {
+        const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(raw.replace(/\s/g, ''))}`);
+        const data = await res.json();
+        if (data.status !== 200 || !data.result) { hint.textContent = 'Postcode not found'; return; }
+        const r = data.result;
+        const townEl  = document.getElementById('f-town');
+        const countyEl = document.getElementById('f-county');
+        const areaEl  = document.getElementById('f-area');
+        if (!townEl.value.trim())  townEl.value  = r.admin_district || r.parish || '';
+        if (!countyEl.value.trim()) countyEl.value = r.admin_county || r.admin_district || '';
+        if (!areaEl.value.trim())  areaEl.value  = r.european_electoral_region || r.region || '';
+        document.getElementById('f-postcode').value = r.postcode;
+        hint.textContent = '✓ Location filled in — feel free to adjust';
+    } catch (err) {
+        hint.textContent = '';
+    }
+}
+
+function showStep(n) {
+    document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+    document.getElementById('step'+n)?.classList.add('active');
+    if (n !== 'Done') setProgress(parseInt(n));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updatePlanBadges() {
+    ['planBadge2','planBadge3','planBadge4'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'badge ' + PLAN_BADGE[selectedPlan];
+        el.textContent = PLAN_LABELS[selectedPlan];
+    });
+    const lbl = document.getElementById('selectedPlanLabel');
+    if (lbl) lbl.textContent = PLAN_LABELS[selectedPlan];
+}
+
+function selectPlan(p) {
+    selectedPlan = p;
+    ['starter','pro','featured'].forEach(k => {
+        const card = document.getElementById('card-'+k);
+        const btn  = document.getElementById('btn-'+k);
+        const isSelected = k === p;
+        card.classList.toggle('selected', isSelected);
+        if (btn) btn.textContent = isSelected ? '✓ Selected' : 'Select ' + PLAN_LABELS[k];
+    });
+    document.getElementById('plan'+p.charAt(0).toUpperCase()+p.slice(1)).checked = true;
+    updatePlanBadges();
+}
+
+function goStep(n) {
+    if (n === 3 && !document.getElementById('f-name').value.trim()) { alert('Please enter your business name.'); return; }
+    if (n === 3) {
+        const limit = CAT_LIMITS[selectedPlan] || 1;
+        const v = document.getElementById('f-cat-0')?.value;
+        if (!v) { alert('Please select at least one category.'); return; }
+    }
+    if (n === 4 && !document.getElementById('f-area').value.trim()) { alert('Please enter your area / region.'); return; }
+    if (n === 4) buildSummary();
+    showStep(n);
+    if (n === 2) updateCatSection();
+}
+
+function updateCatSection() {
+    const n = CAT_LIMITS[selectedPlan] || 1;
+    const hints = {
+        starter: 'You have 1 category on the Starter plan — your listing appears in this trade.',
+        pro:     'You have up to 3 categories on the Pro plan — appear in more searches.',
+        featured:'You have up to 5 categories on the Featured plan. You are pinned/promoted in your primary category only; regular ranking in the others.'
+    };
+    document.getElementById('catHint').textContent = hints[selectedPlan] || '';
+    const container = document.getElementById('catSelects');
+    const current = [...container.querySelectorAll('select')].map(s => s.value);
+    container.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+        const isPrimary = i === 0;
+        const label = isPrimary ? 'Primary Category *' : `Additional Category ${i + 1}`;
+        const pinnedNote = isPrimary && selectedPlan === 'featured'
+            ? ' <span style="font-size:0.72rem;color:var(--gold);font-weight:600">(pinned here)</span>' : '';
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = `<label>${label}${pinnedNote}</label>
+            <select id="f-cat-${i}" onchange="showCatRestrictedHint(${i})">
+                <option value="">— Select a category —</option>
+                ${allCats.map(c => `<option value="${c}"${current[i]===c?' selected':''}>${c}</option>`).join('')}
+            </select>
+            <div id="cat-hint-${i}" class="form-hint"></div>`;
+        container.appendChild(div);
+        showCatRestrictedHint(i);
+    }
+}
+
+let catMetaByName = {};
+function showCatRestrictedHint(i) {
+    const hintEl = document.getElementById(`cat-hint-${i}`);
+    if (!hintEl) return;
+    const name = document.getElementById(`f-cat-${i}`)?.value;
+    const meta = catMetaByName[name];
+    if (!meta || !meta.is_restricted) { hintEl.textContent = ''; return; }
+    const reqs = [meta.requires_documents&&'documents', meta.requires_insurance&&'proof of insurance', meta.requires_qualifications&&'qualifications'].filter(Boolean);
+    hintEl.innerHTML = `⚠ This category requires manual review${reqs.length?' — you\'ll need to provide: '+reqs.join(', '):''}.`;
+    hintEl.style.color = 'var(--gold)';
+}
+
+function buildSummary() {
+    const limit = CAT_LIMITS[selectedPlan] || 1;
+    const cats = [];
+    for (let i = 0; i < limit; i++) {
+        const v = document.getElementById(`f-cat-${i}`)?.value;
+        if (v) cats.push(v);
+    }
+    const name  = document.getElementById('f-name').value.trim();
+    const town  = document.getElementById('f-town').value.trim();
+    const area  = document.getElementById('f-area').value.trim();
+    const priceEl = document.getElementById('priceStarterNum');
+    const prices = {
+        starter: document.getElementById('priceStarterNum')?.textContent || '19',
+        pro:     document.getElementById('priceProNum')?.textContent || '39',
+        featured:document.getElementById('priceFeaturedNum')?.textContent || '79',
+    };
+    const basePrice = parseFloat(prices[selectedPlan]) || 0;
+    let discountedPrice = null;
+    let priceHtml = `£${prices[selectedPlan]}/mo`;
+    if (appliedDiscount) {
+        if (appliedDiscount.type === 'percent') {
+            discountedPrice = Math.max(0, basePrice - basePrice * appliedDiscount.value / 100).toFixed(2);
+        } else {
+            discountedPrice = Math.max(0, basePrice - appliedDiscount.value).toFixed(2);
+        }
+        priceHtml = `<span style="text-decoration:line-through;color:var(--text-muted)">£${prices[selectedPlan]}</span> <span style="color:#16a34a;font-weight:700">£${discountedPrice}</span>/mo <span style="font-size:0.75em;color:#16a34a">(${appliedDiscount.label})</span>`;
+    }
+    document.getElementById('summaryBox').innerHTML = `
+        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.6rem">Your Application Summary</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:0.2rem 0.85rem;align-items:center">
+            <span style="color:var(--text-muted)">Business</span><span style="font-weight:600">${name || '—'}</span>
+            <span style="color:var(--text-muted)">Location</span><span>${[town, area].filter(Boolean).join(', ') || '—'}</span>
+            <span style="color:var(--text-muted)">Category</span><span>${cats.join(', ') || '—'}</span>
+            <span style="color:var(--text-muted)">Plan</span><span style="font-weight:600">${PLAN_LABELS[selectedPlan]} — ${priceHtml}</span>
+        </div>`;
+}
+
+async function applyDiscount() {
+    const code = document.getElementById('discountInput').value.trim();
+    const msg  = document.getElementById('discountMsg');
+    const btn  = document.getElementById('discountBtn');
+    if (!code) return;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch('/api/validate-discount', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        appliedDiscount = { code: code.toUpperCase(), type: d.type, value: d.value, label: d.label };
+        msg.style.display = '';
+        msg.style.color = '#16a34a';
+        msg.textContent = `✓ Code applied — ${d.label}`;
+        btn.textContent = '✓ Applied';
+        buildSummary();
+    } catch(e) {
+        appliedDiscount = null;
+        msg.style.display = '';
+        msg.style.color = 'var(--red)';
+        msg.textContent = e.message;
+        btn.disabled = false; btn.textContent = 'Apply';
+    }
+}
+
+function clearDiscount() {
+    if (!appliedDiscount) return;
+    appliedDiscount = null;
+    const msg = document.getElementById('discountMsg');
+    msg.style.display = 'none';
+    document.getElementById('discountBtn').textContent = 'Apply';
+    document.getElementById('discountBtn').disabled = false;
+    buildSummary();
+}
+
+async function submitSignup() {
+    const btn = document.getElementById('submitBtn');
+    const errEl = document.getElementById('errMsg');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Submitting…';
+
+    const limit = CAT_LIMITS[selectedPlan] || 1;
+    const categories = [];
+    for (let i = 0; i < limit; i++) {
+        const v = document.getElementById(`f-cat-${i}`)?.value;
+        if (v) categories.push(v);
+    }
+    if (!categories.length) {
+        errEl.textContent = 'Please select at least one category.';
+        errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Submit Application →'; return;
+    }
+    if (!document.getElementById('f-owneremail').value.trim()) {
+        errEl.textContent = 'Please enter your email address.';
+        errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Submit Application →'; return;
+    }
+    if (document.getElementById('f-ownerpass').value.length < 8) {
+        errEl.textContent = 'Password must be at least 8 characters.';
+        errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Submit Application →'; return;
+    }
+    try {
+        const r = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name:           document.getElementById('f-name').value.trim(),
+                categories,
+                short_desc:     document.getElementById('f-short').value.trim(),
+                description:    document.getElementById('f-desc').value.trim(),
+                area:           document.getElementById('f-area').value.trim(),
+                town:           document.getElementById('f-town').value.trim(),
+                county:         document.getElementById('f-county').value.trim(),
+                postcode:       document.getElementById('f-postcode').value.trim(),
+                phone:          document.getElementById('f-phone').value.trim(),
+                email:          document.getElementById('f-email').value.trim(),
+                website:        document.getElementById('f-website').value.trim(),
+                owner_name:     document.getElementById('f-ownername').value.trim(),
+                owner_email:    document.getElementById('f-owneremail').value.trim(),
+                owner_password: document.getElementById('f-ownerpass').value,
+                plan:           selectedPlan,
+                discount_code:  appliedDiscount ? appliedDiscount.code : undefined,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        if (d.checkout_url) {
+            btn.textContent = 'Redirecting to secure payment…';
+            window.location.href = d.checkout_url;
+            return;
+        }
+        document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+        document.getElementById('stepDone').classList.add('active');
+        document.getElementById('stepProgress').style.display = 'none';
+    } catch(e) {
+        errEl.textContent = e.message;
+        errEl.style.display = '';
+        btn.disabled = false; btn.textContent = 'Submit Application →';
+    }
+}
+
+async function init() {
+    allCats = await fetch('/api/categories').then(r => r.json()).catch(() => []);
+    CAT_LIMITS = await fetch('/api/plan-limits').then(r => r.json()).catch(() => CAT_LIMITS);
+    const catMeta = await fetch('/api/categories/meta').then(r => r.json()).catch(() => []);
+    catMetaByName = Object.fromEntries(catMeta.map(c => [c.name, c]));
+
+    // Pre-select plan from URL ?plan=pro etc
+    const params = new URLSearchParams(location.search);
+    const p = params.get('plan');
+    if (p && ['starter','pro','featured'].includes(p)) {
+        selectPlan(p);
+    }
+    if (params.get('checkout') === 'cancelled') {
+        const errEl = document.getElementById('errMsg');
+        errEl.textContent = 'Payment was cancelled — your details were saved, you can try again whenever you\'re ready.';
+        errEl.style.display = '';
+    }
+
+    // Load dynamic prices from admin settings
+    const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+    if (s.starter_price)  document.getElementById('priceStarterNum').textContent  = s.starter_price;
+    if (s.pro_price)      document.getElementById('priceProNum').textContent      = s.pro_price;
+    if (s.featured_price) document.getElementById('priceFeaturedNum').textContent = s.featured_price;
+
+    updatePlanBadges();
+}
+init();
+</script>
+</body>
+</html>

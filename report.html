@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report — Monasite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/settings.js"></script>
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-brand">Mona<span>site</span></a>
+        <div class="nav-links">
+            <a href="/directory">Directory</a>
+            <a href="/categories">Categories</a>
+            <a href="/signup">List Your Business</a>
+            <a href="/how-it-works">How It Works</a>
+        </div>
+    </div>
+</nav>
+
+<div class="signup-outer" style="background:var(--off-white);min-height:calc(100vh - 64px)">
+<div style="max-width:560px;margin:0 auto;padding:2.5rem 1.5rem 4rem">
+
+    <div id="formScreen">
+        <h1 id="pageTitle" style="font-size:1.7rem;margin-bottom:0.4rem">Report an Issue</h1>
+        <p id="pageSub" style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1.5rem">Let us know what's wrong — we'll take a look as soon as possible.</p>
+
+        <div class="card card-padded">
+            <div class="form-group">
+                <label>What are you reporting?</label>
+                <select id="r-type" onchange="updateCopy()">
+                    <option value="issue">A site issue or bug</option>
+                    <option value="trader">A trader / business listing</option>
+                </select>
+            </div>
+            <div class="form-group" id="traderNameGroup" style="display:none">
+                <label>Business / Trader Name</label>
+                <input id="r-trader" placeholder="e.g. Monarch Builders">
+            </div>
+            <div class="form-group">
+                <label>Details *</label>
+                <textarea id="r-message" rows="5" placeholder="Please describe what happened…"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Your Email <span style="font-weight:400;color:var(--text-muted)">(optional, in case we need to follow up)</span></label>
+                <input id="r-email" type="email" placeholder="you@example.com">
+            </div>
+            <div id="errMsg" style="color:var(--red);font-size:0.82rem;margin-bottom:0.75rem;display:none"></div>
+            <button class="btn btn-navy btn-block" onclick="submitReport()" id="submitBtn">Submit Report</button>
+        </div>
+    </div>
+
+    <div id="doneScreen" style="display:none;text-align:center;padding:3rem 1rem">
+        <div style="font-size:2.5rem;margin-bottom:1rem">✓</div>
+        <h2 style="margin-bottom:0.5rem">Thanks — we've got it</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem">Your report has been sent to our team and will be reviewed shortly.</p>
+        <a href="/" class="btn btn-outline" style="margin-top:1.5rem">Back to Monasite</a>
+    </div>
+
+</div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Mona<span>site</span></div>
+        <div class="footer-links" style="margin-bottom:0.4rem"><a href="/report?type=issue">Report an Issue</a> · <a href="/report?type=trader">Report a Trader</a></div>
+        <div style="font-size:0.78rem">© <span id="yr"></span> <span data-brand>Monasite</span></div>
+    </div>
+</footer>
+<div id="toastEl"></div>
+<script src="/brand.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+function updateCopy() {
+    const type = document.getElementById('r-type').value;
+    document.getElementById('traderNameGroup').style.display = type === 'trader' ? '' : 'none';
+    document.getElementById('pageTitle').textContent = type === 'trader' ? 'Report a Trader' : 'Report an Issue';
+    document.getElementById('pageSub').textContent = type === 'trader'
+        ? "Tell us about a problem with a specific business listed on Monasite — we'll investigate."
+        : "Let us know what's wrong — we'll take a look as soon as possible.";
+}
+
+async function submitReport() {
+    const btn = document.getElementById('submitBtn');
+    const errEl = document.getElementById('errMsg');
+    const message = document.getElementById('r-message').value.trim();
+    if (!message) { errEl.textContent = 'Please describe the issue.'; errEl.style.display = ''; return; }
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+        const r = await fetch('/api/reports', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: document.getElementById('r-type').value,
+                message,
+                trader_name: document.getElementById('r-trader').value.trim(),
+                reporter_email: document.getElementById('r-email').value.trim(),
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        document.getElementById('formScreen').style.display = 'none';
+        document.getElementById('doneScreen').style.display = '';
+    } catch (e) {
+        errEl.textContent = e.message || 'Something went wrong — please try again.';
+        errEl.style.display = '';
+        btn.disabled = false; btn.textContent = 'Submit Report';
+    }
+}
+
+// Pre-select type from ?type=trader / ?type=issue
+const p = new URLSearchParams(location.search);
+if (p.get('type') === 'trader') document.getElementById('r-type').value = 'trader';
+if (p.get('trader')) document.getElementById('r-trader').value = p.get('trader');
+updateCopy();
+</script>
+</body>
+</html>
