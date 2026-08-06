@@ -30,20 +30,43 @@
 <!-- Admin shell -->
 <div id="adminShell" class="admin-shell" style="display:none">
     <div class="admin-sidebar">
-        <div class="admin-sidebar-brand">Mona<span>site</span> <span style="font-size:0.65rem;font-family:'Inter',sans-serif;color:rgba(255,255,255,0.35);display:block;margin-top:0.2rem;font-weight:400">Admin Panel</span></div>
-        <button class="admin-nav-item active" id="anav-dash"       onclick="showTab('dash')">📊 Dashboard</button>
-        <button class="admin-nav-item"         id="anav-pending"    onclick="showTab('pending')">⏳ Pending Vetting</button>
-        <button class="admin-nav-item"         id="anav-businesses" onclick="showTab('businesses')">🏢 All Businesses</button>
-        <button class="admin-nav-item"         id="anav-reviews"    onclick="showTab('reviews')">⭐ Review Queue</button>
-        <button class="admin-nav-item"         id="anav-discounts"  onclick="showTab('discounts')">🏷️ Discounts</button>
-        <button class="admin-nav-item"         id="anav-categories" onclick="showTab('categories')">📂 Categories</button>
-        <button class="admin-nav-item"         id="anav-reports"    onclick="showTab('reports')">🚩 Reports</button>
-        <button class="admin-nav-item"         id="anav-settings"   onclick="showTab('settings')">⚙️ Settings</button>
-        <div style="margin-top:auto;padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,0.08)">
-            <button onclick="doLogout()" style="font-size:0.78rem;color:rgba(255,255,255,0.35);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif">Sign Out</button>
+        <div class="admin-sidebar-brand"><span data-brand>Monasite</span> <span style="font-size:0.65rem;font-family:'Inter',sans-serif;color:rgba(255,255,255,0.35);display:block;margin-top:0.2rem;font-weight:400">Admin Panel</span></div>
+        <div class="admin-nav-group">
+            <button class="admin-nav-item active" id="anav-dash" onclick="showTab('dash')"><span class="ic">📊</span> Dashboard</button>
+        </div>
+        <div class="admin-nav-group">
+            <button class="admin-nav-item" id="anav-pending"    onclick="showTab('pending')"><span class="ic">⏳</span> Pending Vetting</button>
+            <button class="admin-nav-item" id="anav-businesses" onclick="showTab('businesses')"><span class="ic">🏢</span> All Businesses</button>
+            <button class="admin-nav-item" id="anav-reviews"    onclick="showTab('reviews')"><span class="ic">⭐</span> Review Queue</button>
+            <button class="admin-nav-item" id="anav-reports"    onclick="showTab('reports')"><span class="ic">🚩</span> Reports</button>
+        </div>
+        <div class="admin-nav-group">
+            <button class="admin-nav-item" id="anav-discounts"  onclick="showTab('discounts')"><span class="ic">🏷️</span> Discounts</button>
+            <button class="admin-nav-item" id="anav-categories" onclick="showTab('categories')"><span class="ic">📂</span> Categories</button>
+        </div>
+        <div class="admin-nav-group">
+            <button class="admin-nav-item" id="anav-settings"   onclick="showTab('settings')"><span class="ic">⚙️</span> Settings</button>
         </div>
     </div>
-    <div class="admin-body" id="adminBody"><div class="loading">Loading…</div></div>
+    <div class="admin-main">
+        <div class="admin-topbar">
+            <div class="admin-search">
+                <span class="admin-search-icon">🔍</span>
+                <input id="globalSearchInput" placeholder="Search businesses…" onkeydown="if(event.key==='Enter') runGlobalSearch()">
+            </div>
+            <div class="admin-topbar-right">
+                <button class="admin-icon-btn" onclick="doLogout()" title="Sign out" aria-label="Sign out">🚪</button>
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div>
+                        <div class="admin-profile-name">Admin</div>
+                        <div class="admin-profile-role">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="admin-body" id="adminBody"><div class="loading">Loading…</div></div>
+    </div>
 </div>
 
 <div id="toastEl"></div>
@@ -107,29 +130,96 @@ function showTab(tab) {
     });
 }
 
+function statCard(val, lbl, icon, bg, fg, warn) {
+    return `<div class="stat-card" style="${warn?'border-color:#fde047':''}">
+        <div class="stat-icon" style="background:${bg};color:${fg}">${icon}</div>
+        <div><div class="stat-val" style="${warn?'color:#d97706':''}">${val}</div><div class="stat-lbl">${lbl}</div></div>
+    </div>`;
+}
+
 async function loadDash() {
     const s = await aapi('/api/admin/stats');
     document.getElementById('adminBody').innerHTML = `
         <div class="admin-head"><h2 class="admin-title">Dashboard</h2></div>
         <div class="stat-grid">
-            <div class="stat-card"><div class="stat-val">${s.active}</div><div class="stat-lbl">Live Businesses</div></div>
-            <div class="stat-card" style="${s.pending?'border-color:#fde047':''}""><div class="stat-val" style="${s.pending?'color:#d97706':''}">${s.pending}</div><div class="stat-lbl">Awaiting Vetting</div></div>
-            <div class="stat-card" style="${s.pending_reviews?'border-color:#fde047':''}""><div class="stat-val" style="${s.pending_reviews?'color:#d97706':''}">${s.pending_reviews}</div><div class="stat-lbl">Pending Reviews</div></div>
-            <div class="stat-card"><div class="stat-val">${s.total_reviews}</div><div class="stat-lbl">Published Reviews</div></div>
+            ${statCard(s.active, 'Live Businesses', '🏢', 'rgba(27,42,74,0.08)', 'var(--navy)')}
+            ${statCard(s.pending, 'Awaiting Vetting', '⏳', s.pending?'#fef3c7':'var(--light)', s.pending?'#b45309':'var(--text-mid)', s.pending)}
+            ${statCard(s.pending_reviews, 'Pending Reviews', '⭐', s.pending_reviews?'#fef3c7':'var(--light)', s.pending_reviews?'#b45309':'var(--text-mid)', s.pending_reviews)}
+            ${statCard(s.total_reviews, 'Published Reviews', '✅', '#dcfce7', '#166534')}
         </div>
         <div class="stat-grid">
-            <div class="stat-card"><div class="stat-val">${s.starter_count}</div><div class="stat-lbl">Starter Plan</div></div>
-            <div class="stat-card"><div class="stat-val" style="color:#7c3aed">${s.pro_count}</div><div class="stat-lbl">Pro Plan</div></div>
-            <div class="stat-card"><div class="stat-val" style="color:var(--gold)">${s.featured_count}</div><div class="stat-lbl">Featured Plan</div></div>
-            <div class="stat-card"><div class="stat-val">${s.total_businesses}</div><div class="stat-lbl">Total Businesses</div></div>
+            ${statCard(s.starter_count, 'Starter Plan', '📦', 'var(--light)', 'var(--text-mid)')}
+            ${statCard(s.pro_count, 'Pro Plan', '💎', '#ede9fe', '#6d28d9')}
+            ${statCard(s.featured_count, 'Featured Plan', '👑', 'rgba(201,168,76,0.16)', 'var(--gold-dk)')}
+            ${statCard(s.total_businesses, 'Total Businesses', '📊', 'rgba(27,42,74,0.08)', 'var(--navy)')}
         </div>
         <div id="revenuePanel" style="margin-bottom:1.2rem"></div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.2rem">
             ${s.pending?`<button class="btn btn-primary" onclick="showTab('pending')">⏳ Review ${s.pending} Pending Business${s.pending!==1?'es':''} →</button>`:''}
             ${s.pending_reviews?`<button class="btn btn-navy" onclick="showTab('reviews')">⭐ Moderate ${s.pending_reviews} Review${s.pending_reviews!==1?'s':''} →</button>`:''}
             ${s.open_reports?`<button class="btn btn-outline" onclick="showTab('reports')">🚩 ${s.open_reports} Open Report${s.open_reports!==1?'s':''} →</button>`:''}
-        </div>`;
+        </div>
+        <div class="widget-grid" id="dashWidgets"></div>`;
     loadRevenue();
+    loadDashWidgets(s);
+}
+
+async function loadDashWidgets(s) {
+    const grid = document.getElementById('dashWidgets');
+    if (!grid) return;
+    let businesses = [];
+    try { businesses = await aapi('/api/admin/businesses'); } catch { grid.innerHTML = ''; return; }
+
+    const recent = businesses.slice(0, 5);
+    const catCounts = {};
+    businesses.forEach(b => { const c = b.category || 'Uncategorised'; catCounts[c] = (catCounts[c]||0) + 1; });
+    const topCats = Object.entries(catCounts).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    const maxCat = topCats.length ? topCats[0][1] : 1;
+
+    grid.innerHTML = `
+        <div class="widget-card">
+            <div class="widget-head"><h4>Needs Attention</h4></div>
+            <div class="widget-row" style="cursor:pointer" onclick="showTab('pending')">
+                <span class="widget-row-label">⏳ Awaiting Vetting</span>
+                <span class="widget-row-count ${s.pending?'':'zero'}">${s.pending}</span>
+            </div>
+            <div class="widget-row" style="cursor:pointer" onclick="showTab('reviews')">
+                <span class="widget-row-label">⭐ Pending Reviews</span>
+                <span class="widget-row-count ${s.pending_reviews?'':'zero'}">${s.pending_reviews}</span>
+            </div>
+            <div class="widget-row" style="cursor:pointer" onclick="showTab('reports')">
+                <span class="widget-row-label">🚩 Open Reports</span>
+                <span class="widget-row-count ${s.open_reports?'':'zero'}">${s.open_reports}</span>
+            </div>
+        </div>
+        <div class="widget-card">
+            <div class="widget-head"><h4>Recent Signups</h4><a href="#" onclick="showTab('businesses');return false" style="font-size:0.78rem;color:var(--navy)">View all</a></div>
+            ${recent.length ? recent.map(b => `
+                <div class="widget-row">
+                    <span class="widget-row-label" style="min-width:0">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.name)}</span>
+                    </span>
+                    <span style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap">${fmtDate(b.created_at)}</span>
+                </div>`).join('') : '<div class="empty" style="padding:1rem">No businesses yet</div>'}
+        </div>
+        <div class="widget-card">
+            <div class="widget-head"><h4>Top Categories</h4></div>
+            ${topCats.length ? topCats.map(([name,count]) => `
+                <div class="widget-row">
+                    <span class="widget-row-label" style="flex-shrink:0">${esc(name)}</span>
+                    <div class="widget-cat-bar"><div class="widget-cat-bar-fill" style="width:${Math.round(count/maxCat*100)}%"></div></div>
+                    <span style="font-weight:700;font-size:0.78rem">${count}</span>
+                </div>`).join('') : '<div class="empty" style="padding:1rem">No data yet</div>'}
+        </div>`;
+}
+
+async function runGlobalSearch() {
+    const q = document.getElementById('globalSearchInput').value.trim();
+    document.querySelectorAll('.admin-nav-item').forEach(el=>el.classList.remove('active'));
+    document.getElementById('anav-businesses')?.classList.add('active');
+    await loadBusinesses();
+    const input = document.getElementById('bizSearch');
+    if (input) { input.value = q; filterBiz(); }
 }
 
 async function loadRevenue() {
