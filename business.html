@@ -595,6 +595,15 @@ async function loadBusiness() {
                 <div><div class="contact-label">Location</div><div class="contact-value">${esc(addrParts.join(', '))}</div></div>
             </div>`);
         if (contactParts.length === 1) contactParts.push(`<p style="font-size:0.82rem;color:var(--text-muted)">No contact details available.</p>`);
+        contactParts.push(`
+            <div id="enquiryForm" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+                <div style="font-size:0.82rem;font-weight:700;margin-bottom:0.6rem">Send a message</div>
+                <div class="form-group" style="margin-bottom:0.5rem"><input id="enq-name" placeholder="Your name"></div>
+                <div class="form-group" style="margin-bottom:0.5rem"><input id="enq-email" type="email" placeholder="Your email"></div>
+                <div class="form-group" style="margin-bottom:0.5rem"><input id="enq-phone" placeholder="Your phone (optional)"></div>
+                <div class="form-group" style="margin-bottom:0.6rem"><textarea id="enq-message" rows="3" placeholder="What do you need help with?"></textarea></div>
+                <button class="btn btn-navy btn-sm btn-block" onclick="submitEnquiry()">Send Message</button>
+            </div>`);
         document.getElementById('bizContact').innerHTML = contactParts.join('');
 
         // Verified seal — show for verified Pro/Featured
@@ -707,6 +716,31 @@ async function submitReview() {
     } catch(e) {
         alert(e.message);
         btn.disabled = false; btn.textContent = 'Submit Review';
+    }
+}
+
+async function submitEnquiry() {
+    const message = document.getElementById('enq-message').value.trim();
+    if (!message) { alert('Please enter a message.'); return; }
+    const btn = document.querySelector('#enquiryForm button');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+        const r = await fetch(`/api/businesses/${slug}/enquiries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name:    document.getElementById('enq-name').value.trim(),
+                email:   document.getElementById('enq-email').value.trim(),
+                phone:   document.getElementById('enq-phone').value.trim(),
+                message,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        document.getElementById('enquiryForm').innerHTML = `<div style="font-size:0.85rem;color:#166534">✓ Message sent — they'll be in touch soon.</div>`;
+    } catch(e) {
+        alert(e.message);
+        btn.disabled = false; btn.textContent = 'Send Message';
     }
 }
 

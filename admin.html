@@ -35,16 +35,24 @@
             <button class="admin-nav-item active" id="anav-dash" onclick="showTab('dash')"><span class="ic">📊</span> Dashboard</button>
         </div>
         <div class="admin-nav-group">
-            <button class="admin-nav-item" id="anav-pending"    onclick="showTab('pending')"><span class="ic">⏳</span> Pending Vetting</button>
-            <button class="admin-nav-item" id="anav-businesses" onclick="showTab('businesses')"><span class="ic">🏢</span> All Businesses</button>
+            <button class="admin-nav-item" id="anav-pending"      onclick="showTab('pending')"><span class="ic">⏳</span> Pending Vetting</button>
+            <button class="admin-nav-item" id="anav-verification" onclick="showTab('verification')"><span class="ic">🛡️</span> Verification</button>
+            <button class="admin-nav-item" id="anav-businesses"   onclick="showTab('businesses')"><span class="ic">🏢</span> All Businesses</button>
+            <button class="admin-nav-item" id="anav-featured"     onclick="showTab('featured')"><span class="ic">👑</span> Featured Listings</button>
+        </div>
+        <div class="admin-nav-group">
             <button class="admin-nav-item" id="anav-reviews"    onclick="showTab('reviews')"><span class="ic">⭐</span> Review Queue</button>
+            <button class="admin-nav-item" id="anav-enquiries"  onclick="showTab('enquiries')"><span class="ic">✉️</span> Enquiries</button>
+            <button class="admin-nav-item" id="anav-support"    onclick="showTab('support')"><span class="ic">🎫</span> Support Tickets</button>
             <button class="admin-nav-item" id="anav-reports"    onclick="showTab('reports')"><span class="ic">🚩</span> Reports</button>
         </div>
         <div class="admin-nav-group">
             <button class="admin-nav-item" id="anav-discounts"  onclick="showTab('discounts')"><span class="ic">🏷️</span> Discounts</button>
             <button class="admin-nav-item" id="anav-categories" onclick="showTab('categories')"><span class="ic">📂</span> Categories</button>
+            <button class="admin-nav-item" id="anav-locations"  onclick="showTab('locations')"><span class="ic">📍</span> Locations</button>
         </div>
         <div class="admin-nav-group">
+            <button class="admin-nav-item" id="anav-audit"      onclick="showTab('audit')"><span class="ic">🕒</span> Audit Logs</button>
             <button class="admin-nav-item" id="anav-settings"   onclick="showTab('settings')"><span class="ic">⚙️</span> Settings</button>
         </div>
     </div>
@@ -124,7 +132,7 @@ function showTab(tab) {
     document.querySelectorAll('.admin-nav-item').forEach(el=>el.classList.remove('active'));
     const nav = document.getElementById('anav-'+tab);
     if (nav) nav.classList.add('active');
-    const loaders = { dash: loadDash, pending: loadPending, businesses: loadBusinesses, reviews: loadReviews, discounts: loadDiscounts, categories: loadCategories, reports: loadReports, settings: loadSettings };
+    const loaders = { dash: loadDash, pending: loadPending, verification: loadVerification, businesses: loadBusinesses, featured: loadFeatured, reviews: loadReviews, enquiries: loadEnquiries, support: loadSupportTickets, discounts: loadDiscounts, categories: loadCategories, locations: loadLocations, reports: loadReports, audit: loadAuditLogs, settings: loadSettings };
     (loaders[tab]||loadDash)().catch(e => {
         document.getElementById('adminBody').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`;
     });
@@ -159,9 +167,41 @@ async function loadDash() {
             ${s.pending_reviews?`<button class="btn btn-navy" onclick="showTab('reviews')">⭐ Moderate ${s.pending_reviews} Review${s.pending_reviews!==1?'s':''} →</button>`:''}
             ${s.open_reports?`<button class="btn btn-outline" onclick="showTab('reports')">🚩 ${s.open_reports} Open Report${s.open_reports!==1?'s':''} →</button>`:''}
         </div>
+        <div class="card card-padded" style="margin-bottom:1.2rem">
+            <div class="widget-head"><h4>Overview</h4></div>
+            <div id="analyticsChart"><div class="loading">Loading…</div></div>
+        </div>
         <div class="widget-grid" id="dashWidgets"></div>`;
     loadRevenue();
     loadDashWidgets(s);
+    loadAnalyticsChart();
+}
+
+async function loadAnalyticsChart() {
+    const el = document.getElementById('analyticsChart');
+    if (!el) return;
+    let rows = [];
+    try { rows = await aapi('/api/admin/daily-stats'); } catch { el.innerHTML = ''; return; }
+    if (rows.length < 2) {
+        el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem">Tracking started ${rows.length ? fmtDate(rows[0].date) : 'today'} — a trend will appear here after a few days of data. No past history is invented.</div>`;
+        return;
+    }
+    const series = [
+        { key: 'total_businesses', label: 'Businesses', color: 'var(--navy)' },
+        { key: 'total_reviews',    label: 'Published Reviews', color: 'var(--gold)' },
+    ];
+    const max = Math.max(1, ...rows.flatMap(r => series.map(s => r[s.key] || 0)));
+    el.innerHTML = `
+        <div class="analytics-legend">${series.map(s => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('')}</div>
+        <div class="analytics-chart">
+            ${rows.map(r => `
+                <div class="analytics-bar-col" title="${fmtDate(r.date)}">
+                    ${series.map(s => `<div class="analytics-bar" style="height:${Math.max(2, Math.round((r[s.key]||0)/max*100))}%;background:${s.color}"></div>`).join('')}
+                </div>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);margin-top:0.4rem">
+            <span>${fmtDate(rows[0].date)}</span><span>${fmtDate(rows[rows.length-1].date)}</span>
+        </div>`;
 }
 
 async function loadDashWidgets(s) {
@@ -187,6 +227,14 @@ async function loadDashWidgets(s) {
                 <span class="widget-row-label">⭐ Pending Reviews</span>
                 <span class="widget-row-count ${s.pending_reviews?'':'zero'}">${s.pending_reviews}</span>
             </div>
+            <div class="widget-row" style="cursor:pointer" onclick="showTab('enquiries')">
+                <span class="widget-row-label">✉️ New Enquiries</span>
+                <span class="widget-row-count ${s.new_enquiries?'':'zero'}">${s.new_enquiries}</span>
+            </div>
+            <div class="widget-row" style="cursor:pointer" onclick="showTab('support')">
+                <span class="widget-row-label">🎫 Open Tickets</span>
+                <span class="widget-row-count ${s.open_tickets?'':'zero'}">${s.open_tickets}</span>
+            </div>
             <div class="widget-row" style="cursor:pointer" onclick="showTab('reports')">
                 <span class="widget-row-label">🚩 Open Reports</span>
                 <span class="widget-row-count ${s.open_reports?'':'zero'}">${s.open_reports}</span>
@@ -210,6 +258,17 @@ async function loadDashWidgets(s) {
                     <div class="widget-cat-bar"><div class="widget-cat-bar-fill" style="width:${Math.round(count/maxCat*100)}%"></div></div>
                     <span style="font-weight:700;font-size:0.78rem">${count}</span>
                 </div>`).join('') : '<div class="empty" style="padding:1rem">No data yet</div>'}
+        </div>
+        <div class="widget-card">
+            <div class="widget-head"><h4>System Status</h4></div>
+            <div class="widget-row">
+                <span class="widget-row-label">💳 Stripe</span>
+                <span class="widget-row-count ${s.stripe_connected?'zero':''}">${s.stripe_connected?'Connected':'Not connected'}</span>
+            </div>
+            <div class="widget-row">
+                <span class="widget-row-label">📧 Email</span>
+                <span class="widget-row-count ${s.email_configured?'zero':''}">${s.email_configured?'Configured':'Not configured'}</span>
+            </div>
         </div>`;
 }
 
@@ -254,6 +313,41 @@ async function loadPending() {
         ${businesses.length ? businesses.map(bizCard).join('') : '<div class="empty">No businesses pending vetting.</div>'}`;
 }
 
+async function loadVerification() {
+    const businesses = await aapi('/api/admin/businesses?verification=1');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Verification</h2><span style="font-size:0.85rem;color:var(--text-muted)">${businesses.length} awaiting document review</span></div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Businesses in restricted categories (requiring insurance, qualifications or documents) that need their compliance documents checked — independent of whether the listing itself is already live.</p>
+        ${businesses.length ? businesses.map(verificationCard).join('') : '<div class="empty">Nothing awaiting verification. 🎉</div>'}`;
+}
+
+function verificationCard(b) {
+    return `<div class="card card-padded" style="margin-bottom:1rem" id="verify-${b.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem">
+            <div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">
+                    <span style="font-weight:700;font-size:0.95rem">${esc(b.name)}</span>
+                    <span class="badge badge-pending">Awaiting Verification</span>
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-muted)">${esc(b.category||'—')} · ${esc(b.area||'—')} · Status: ${b.status}</div>
+            </div>
+            <div style="display:flex;gap:0.4rem">
+                <button class="btn btn-sm" style="background:#dcfce7;color:#166534" onclick="verifyDecision(${b.id},'approved')">✓ Approve Documents</button>
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="verifyDecision(${b.id},'rejected')">✗ Reject</button>
+            </div>
+        </div>
+        ${adminComplianceDocsHtml(b)}
+    </div>`;
+}
+
+async function verifyDecision(id, decision) {
+    try {
+        await aapi(`/api/admin/businesses/${id}/verification`, 'PUT', { decision });
+        toast(decision === 'approved' ? 'Documents approved' : 'Documents rejected');
+        document.getElementById('verify-'+id)?.remove();
+    } catch(e) { toast(e.message || 'Failed to save decision', true); }
+}
+
 async function loadBusinesses() {
     const businesses = await aapi('/api/admin/businesses');
     document.getElementById('adminBody').innerHTML = `
@@ -278,6 +372,14 @@ async function loadBusinesses() {
         </div>
         <div id="bizFormPanel"></div>
         <div id="bizList">${businesses.map(bizCard).join('')}</div>`;
+    window._allBiz = businesses;
+}
+
+async function loadFeatured() {
+    const businesses = await aapi('/api/admin/businesses?featured=1');
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Featured Listings</h2><span style="font-size:0.85rem;color:var(--text-muted)">${businesses.length} featured</span></div>
+        ${businesses.length ? businesses.map(bizCard).join('') : '<div class="empty">No featured listings right now — apply the Featured plan or a promo from All Businesses.</div>'}`;
     window._allBiz = businesses;
 }
 
@@ -567,6 +669,101 @@ async function setReviewStatus(id, status) {
     document.getElementById('rv-'+id)?.remove();
 }
 
+// ── Enquiries ────────────────────────────────────────────────────────────────
+
+async function loadEnquiries(status = 'new') {
+    const params = status ? `?status=${status}` : '';
+    const rows = await aapi('/api/admin/enquiries' + params);
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Enquiries</h2>
+            <select id="enqStatus" class="filter-select" onchange="loadEnquiries(this.value)">
+                <option value="new" ${status==='new'?'selected':''}>New</option>
+                <option value="read" ${status==='read'?'selected':''}>Read</option>
+                <option value="archived" ${status==='archived'?'selected':''}>Archived</option>
+                <option value="" ${!status?'selected':''}>All</option>
+            </select>
+        </div>
+        <div id="enqList">${rows.length ? rows.map(enquiryCard).join('') : '<div class="empty">No enquiries here.</div>'}</div>`;
+}
+
+function enquiryCard(e) {
+    const statusBadge = {'new':'badge-pending','read':'badge-starter','archived':'badge-rejected'}[e.status]||'badge-starter';
+    return `<div class="card card-padded" style="margin-bottom:0.75rem" id="enq-${e.id}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+            <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">
+                    <span style="font-weight:600">${esc(e.name||'Anonymous')}</span>
+                    <span class="badge ${statusBadge}">${e.status}</span>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem">
+                    to <a href="/business/${esc(e.business_slug)}" target="_blank" style="color:var(--navy);font-weight:600">${esc(e.business_name)}</a>
+                    · ${fmtDate(e.created_at)}
+                    ${e.email?` · ${esc(e.email)}`:''}${e.phone?` · ${esc(e.phone)}`:''}
+                </div>
+                <div style="font-size:0.875rem;color:var(--text-mid)">${esc(e.message)}</div>
+            </div>
+            <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap">
+                ${e.status!=='read'?`<button class="btn btn-outline btn-sm" onclick="setEnquiryStatus(${e.id},'read')">Mark Read</button>`:''}
+                ${e.status!=='archived'?`<button class="btn btn-outline btn-sm" onclick="setEnquiryStatus(${e.id},'archived')">Archive</button>`:''}
+            </div>
+        </div>
+    </div>`;
+}
+
+async function setEnquiryStatus(id, status) {
+    await aapi(`/api/admin/enquiries/${id}/status`, 'PUT', { status });
+    toast('Enquiry ' + status);
+    document.getElementById('enq-'+id)?.remove();
+}
+
+// ── Support Tickets ──────────────────────────────────────────────────────────
+
+async function loadSupportTickets(status = 'open') {
+    const params = status ? `?status=${status}` : '';
+    const rows = await aapi('/api/admin/support-tickets' + params);
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Support Tickets</h2>
+            <select id="ticketStatus" class="filter-select" onchange="loadSupportTickets(this.value)">
+                <option value="open" ${status==='open'?'selected':''}>Open</option>
+                <option value="resolved" ${status==='resolved'?'selected':''}>Resolved</option>
+                <option value="" ${!status?'selected':''}>All</option>
+            </select>
+        </div>
+        <div id="ticketList">${rows.length ? rows.map(ticketCard).join('') : '<div class="empty">No support tickets here. 🎉</div>'}</div>`;
+}
+
+function ticketCard(t) {
+    return `<div class="card card-padded" style="margin-bottom:0.75rem" id="ticket-${t.id}">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem">
+            <span style="font-weight:700;font-size:0.9rem">${esc(t.subject)}</span>
+            <span class="badge ${t.status==='open'?'badge-pending':'badge-verified'}">${t.status}</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem">
+            from <strong>${esc(t.business_name)}</strong> (${esc(t.owner_email)}) · ${fmtDate(t.created_at)}
+        </div>
+        <div style="font-size:0.875rem;color:var(--text-mid);margin-bottom:0.6rem">${esc(t.message)}</div>
+        ${t.reply ? `
+        <div style="background:var(--off-white);border-radius:6px;padding:0.6rem 0.8rem;font-size:0.82rem">
+            <div style="font-weight:600;margin-bottom:0.2rem">Your reply · ${fmtDate(t.replied_at)}</div>
+            ${esc(t.reply)}
+        </div>` : `
+        <div style="display:flex;gap:0.5rem;align-items:flex-start">
+            <textarea id="reply-${t.id}" rows="2" style="flex:1;padding:0.6rem 0.8rem;border:1.5px solid rgba(0,0,0,0.1);border-radius:7px;font-family:'Inter',sans-serif;font-size:0.85rem" placeholder="Write a reply…"></textarea>
+            <button class="btn btn-navy btn-sm" onclick="replyTicket(${t.id})">Send Reply</button>
+        </div>`}
+    </div>`;
+}
+
+async function replyTicket(id) {
+    const reply = document.getElementById('reply-'+id).value.trim();
+    if (!reply) return toast('Please enter a reply', true);
+    try {
+        await aapi(`/api/admin/support-tickets/${id}/reply`, 'PUT', { reply });
+        toast('Reply sent');
+        loadSupportTickets(document.getElementById('ticketStatus')?.value ?? 'open');
+    } catch(e) { toast(e.message || 'Failed to send reply', true); }
+}
+
 async function loadDiscounts() {
     const codes = await aapi('/api/admin/discounts');
     const now = new Date();
@@ -847,6 +1044,164 @@ async function deleteCategory(id, name) {
     if (!confirm(`Delete category "${name}"? This cannot be undone — disabling it instead is reversible.`)) return;
     try { await aapi(`/api/admin/categories/${id}`, 'DELETE'); toast('Category deleted'); applyCatFilters(); }
     catch(e) { toast(e.message, true); }
+}
+
+// ── Locations ────────────────────────────────────────────────────────────────
+// Admin-managed canonical list. Not yet wired into the public signup form or directory
+// filters (both use free-text "area" today) — a deliberate follow-up, not an oversight.
+
+async function loadLocations(q = '') {
+    const params = q ? '?q=' + encodeURIComponent(q) : '';
+    const locs = await aapi('/api/admin/locations' + params);
+    window._allLocRows = locs;
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Locations</h2>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="showLocForm()">+ Add Location</button>
+                <input id="locSearch" class="filter-input" placeholder="Search…" value="${esc(q)}" style="width:180px" onkeydown="if(event.key==='Enter') loadLocations(this.value.trim())">
+            </div>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">A canonical list of areas for consistency and future location pages — not yet linked to the signup form or directory search, which still use free-text area.</p>
+        <div id="locFormPanel"></div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">${locs.length} location${locs.length!==1?'s':''}</div>
+        <div id="locList">${locs.map((l,i) => locRowHtml(l,i,locs.length)).join('') || '<div class="empty">No locations yet.</div>'}</div>`;
+}
+
+function locRowHtml(l, i, total) {
+    return `<div class="card card-padded" style="margin-bottom:0.5rem;padding:0.6rem 0.9rem" id="loc-row-${l.id}">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column">
+                <button class="btn btn-outline btn-sm" style="padding:0 0.4rem;line-height:1.3" ${i===0?'disabled':''} onclick="moveLocation(${l.id},'up')">▲</button>
+                <button class="btn btn-outline btn-sm" style="padding:0 0.4rem;line-height:1.3" ${i===total-1?'disabled':''} onclick="moveLocation(${l.id},'down')">▼</button>
+            </div>
+            <div style="flex:1;min-width:160px">
+                <div style="font-weight:600;font-size:0.88rem">${esc(l.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);font-family:monospace">/${esc(l.slug||'')}</div>
+            </div>
+            <select class="filter-select" style="font-size:0.75rem;padding:0.3rem 0.5rem" onchange="setLocStatus(${l.id},this.value)">
+                <option value="active" ${l.status==='active'?'selected':''}>Active</option>
+                <option value="disabled" ${l.status==='disabled'?'selected':''}>Disabled</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="editLoc(${l.id})">Edit</button>
+            <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deleteLocation(${l.id},'${esc(l.name)}')">Delete</button>
+        </div>
+    </div>`;
+}
+
+function showLocForm(loc) {
+    document.getElementById('locFormPanel').innerHTML = `
+        <div class="card card-padded" style="margin-bottom:1rem;max-width:720px">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">${loc ? 'Edit Location' : 'Add Location'}</h4>
+            <input type="hidden" id="lf-id" value="${loc?.id||''}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+                <div class="form-group"><label>Name *</label><input id="lf-name" value="${esc(loc?.name||'')}" oninput="${loc?'':"document.getElementById('lf-slug').value = document.getElementById('lf-slug').dataset.touched ? document.getElementById('lf-slug').value : slugifyClient(this.value)"}"></div>
+                <div class="form-group"><label>Slug</label><input id="lf-slug" value="${esc(loc?.slug||'')}" onchange="this.dataset.touched=1"></div>
+                <div class="form-group"><label>Sort Order</label><input id="lf-sort" type="number" value="${loc?.sort_order ?? 0}"></div>
+                <div class="form-group"><label>Status</label>
+                    <select id="lf-status">
+                        <option value="active" ${(loc?.status||'active')==='active'?'selected':''}>Active</option>
+                        <option value="disabled" ${loc?.status==='disabled'?'selected':''}>Disabled</option>
+                    </select>
+                </div>
+                <div class="form-group form-full"><label>SEO Title</label><input id="lf-seotitle" value="${esc(loc?.seo_title||'')}"></div>
+                <div class="form-group form-full"><label>SEO Description</label><textarea id="lf-seodesc" rows="2">${esc(loc?.seo_description||'')}</textarea></div>
+                <div class="form-group form-full"><label>Description</label><textarea id="lf-desc" rows="3">${esc(loc?.description||'')}</textarea></div>
+            </div>
+            <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+                <button class="btn btn-navy" onclick="saveLocForm()">${loc ? 'Save Changes' : 'Create Location'}</button>
+                <button class="btn btn-outline" onclick="document.getElementById('locFormPanel').innerHTML=''">Cancel</button>
+            </div>
+        </div>`;
+    document.getElementById('locFormPanel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function editLoc(id) {
+    const l = (window._allLocRows||[]).find(x => x.id === id);
+    if (l) showLocForm(l);
+}
+
+async function saveLocForm() {
+    const id = document.getElementById('lf-id').value;
+    const payload = {
+        name: document.getElementById('lf-name').value.trim(),
+        slug: document.getElementById('lf-slug').value.trim(),
+        sort_order: document.getElementById('lf-sort').value,
+        status: document.getElementById('lf-status').value,
+        seo_title: document.getElementById('lf-seotitle').value.trim(),
+        seo_description: document.getElementById('lf-seodesc').value.trim(),
+        description: document.getElementById('lf-desc').value.trim(),
+    };
+    if (!payload.name) return toast('Name is required', true);
+    try {
+        if (id) await aapi(`/api/admin/locations/${id}`, 'PUT', payload);
+        else    await aapi('/api/admin/locations', 'POST', payload);
+        toast(id ? 'Location updated' : 'Location created');
+        document.getElementById('locFormPanel').innerHTML = '';
+        loadLocations();
+    } catch(e) { toast(e.message || 'Save failed', true); }
+}
+
+async function setLocStatus(id, status) {
+    try { await aapi(`/api/admin/locations/${id}`, 'PUT', { status }); toast('Status updated'); }
+    catch(e) { toast(e.message, true); }
+}
+async function moveLocation(id, direction) {
+    await aapi(`/api/admin/locations/${id}/move`, 'PUT', { direction });
+    loadLocations();
+}
+async function deleteLocation(id, name) {
+    if (!confirm(`Delete location "${name}"?`)) return;
+    try { await aapi(`/api/admin/locations/${id}`, 'DELETE'); toast('Location deleted'); loadLocations(); }
+    catch(e) { toast(e.message, true); }
+}
+
+// ── Audit Logs ───────────────────────────────────────────────────────────────
+
+const AUDIT_ACTION_LABELS = {
+    'business.status_changed': 'Business status changed',
+    'business.plan_changed': 'Business plan changed',
+    'business.promo_applied': 'Promo applied',
+    'business.promo_cancelled': 'Promo cancelled',
+    'business.deleted': 'Business deleted',
+    'business.verification_decided': 'Verification decided',
+    'review.status_changed': 'Review status changed',
+    'discount.created': 'Discount code created',
+    'discount.deleted': 'Discount code deleted',
+    'category.created': 'Category created',
+    'category.updated': 'Category updated',
+    'category.deleted': 'Category deleted',
+    'location.created': 'Location created',
+    'location.updated': 'Location updated',
+    'location.deleted': 'Location deleted',
+    'report.status_changed': 'Report status changed',
+    'settings.updated': 'Settings updated',
+};
+
+async function loadAuditLogs(page = 1) {
+    const d = await aapi('/api/admin/audit-logs?page=' + page);
+    document.getElementById('adminBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Audit Logs</h2><span style="font-size:0.85rem;color:var(--text-muted)">${d.total} action${d.total!==1?'s':''} recorded</span></div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Every entry is attributed to "Admin" — there's a single shared admin login today, not per-person accounts, so this tracks what happened, not who specifically did it.</p>
+        <div class="card">
+            <table class="data-table">
+                <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Details</th></tr></thead>
+                <tbody>
+                ${d.rows.length ? d.rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${new Date(r.created_at.replace(' ','T')+'Z').toLocaleString('en-GB')}</td>
+                        <td>Admin</td>
+                        <td>${esc(AUDIT_ACTION_LABELS[r.action] || r.action)}</td>
+                        <td style="color:var(--text-muted)">${esc(r.details)}</td>
+                    </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">No actions recorded yet</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+        ${d.pages > 1 ? `
+        <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem">
+            <button class="btn btn-outline btn-sm" ${page<=1?'disabled':''} onclick="loadAuditLogs(${page-1})">← Previous</button>
+            <span style="font-size:0.8rem;color:var(--text-muted);align-self:center">Page ${d.page} of ${d.pages}</span>
+            <button class="btn btn-outline btn-sm" ${page>=d.pages?'disabled':''} onclick="loadAuditLogs(${page+1})">Next →</button>
+        </div>` : ''}`;
 }
 
 async function loadSettings() {

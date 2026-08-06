@@ -140,6 +140,55 @@ CREATE TABLE IF NOT EXISTS reports (
     status         TEXT NOT NULL DEFAULT 'open',
     created_at     TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS locations (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    name             TEXT NOT NULL UNIQUE,
+    slug             TEXT UNIQUE,
+    sort_order       INTEGER NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'active',
+    description      TEXT DEFAULT '',
+    seo_title        TEXT DEFAULT '',
+    seo_description  TEXT DEFAULT '',
+    created_at       TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    action      TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id   INTEGER,
+    details     TEXT DEFAULT '',
+    created_at  TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS daily_stats (
+    date              TEXT PRIMARY KEY,
+    total_businesses  INTEGER DEFAULT 0,
+    active_businesses INTEGER DEFAULT 0,
+    total_reviews     INTEGER DEFAULT 0,
+    pending_reviews   INTEGER DEFAULT 0,
+    open_reports      INTEGER DEFAULT 0,
+    new_enquiries     INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS enquiries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER NOT NULL,
+    name        TEXT DEFAULT '',
+    email       TEXT DEFAULT '',
+    phone       TEXT DEFAULT '',
+    message     TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'new',
+    created_at  TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER NOT NULL,
+    owner_email TEXT DEFAULT '',
+    subject     TEXT NOT NULL DEFAULT '',
+    message     TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'open',
+    reply       TEXT DEFAULT '',
+    replied_at  TEXT DEFAULT '',
+    created_at  TEXT DEFAULT (datetime('now'))
+);
 `);
 
 // Categories: visibility, restriction, compliance-requirement and SEO fields
@@ -352,6 +401,28 @@ function getCatLimits() {
         featured: parseInt(s.cat_limit_featured) || 5,
     };
 }
+// Admin action trail — actor is always 'Admin' since there's a single shared admin login,
+// not per-person attribution (that needs named staff accounts, which don't exist yet).
+function logAudit(action, entity_type, entity_id, details = '') {
+    db.prepare('INSERT INTO audit_logs (action,entity_type,entity_id,details) VALUES (?,?,?,?)')
+        .run(action, entity_type, entity_id ?? null, details);
+}
+// One row per calendar day of headline counts, so Analytics has real (if short) history to
+// chart instead of fabricated trends. INSERT OR IGNORE means redeploys/restarts never
+// duplicate or skip today's snapshot.
+function snapshotDailyStats() {
+    const today = new Date().toISOString().slice(0, 10);
+    db.prepare(`INSERT OR IGNORE INTO daily_stats (date, total_businesses, active_businesses, total_reviews, pending_reviews, open_reports, new_enquiries)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+        today,
+        db.prepare("SELECT COUNT(*) AS n FROM businesses").get().n,
+        db.prepare("SELECT COUNT(*) AS n FROM businesses WHERE status='active'").get().n,
+        db.prepare("SELECT COUNT(*) AS n FROM reviews WHERE status='approved'").get().n,
+        db.prepare("SELECT COUNT(*) AS n FROM reviews WHERE status='pending'").get().n,
+        db.prepare("SELECT COUNT(*) AS n FROM reports WHERE status='open'").get().n,
+        db.prepare("SELECT COUNT(*) AS n FROM enquiries WHERE date(created_at)=?").get(today).n,
+    );
+}
 
 // ── Email ────────────────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -560,6 +631,87 @@ app.post('/api/reviews', (req, res) => {
     res.json({ ok: true, message: 'Review submitted — pending approval' });
 });
 
+// Enquiries — a visitor contacting a business directly through its listing, no account needed
+app.post('/api/businesses/:slug/enquiries', (req, res) => {
+    const { name, email, phone, message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Please enter a message' });
+    const b = db.prepare("SELECT * FROM businesses WHERE slug=? AND status='active'").get(req.params.slug);
+    if (!b) return res.status(404).json({ error: 'Business not found' });
+    const r = db.prepare('INSERT INTO enquiries (business_id,name,email,phone,message) VALUES (?,?,?,?,?)')
+        .run(b.id, (name||'').trim(), (email||'').trim(), (phone||'').trim(), message.trim());
+    const owner = db.prepare('SELECT * FROM business_owners WHERE business_id=?').get(b.id);
+    if (owner) {
+        sendMail(owner.email, `New enquiry — ${b.name}`,
+            `<p>You have a new enquiry via your ${siteUrl()} listing:</p>
+             <p><strong>From:</strong> ${name || '(no name given)'}${email?` (${email})`:''}${phone?` · ${phone}`:''}</p>
+             <p>${message}</p>
+             <p><a href="${siteUrl()}/dashboard">View in your dashboard</a></p>`
+        ).catch(()=>{});
+    }
+    res.json({ ok: true, id: r.lastInsertRowid });
+});
+app.get('/api/admin/enquiries', requireAdmin, (req, res) => {
+    const { status } = req.query;
+    const where = status ? 'WHERE e.status=?' : '';
+    const params = status ? [status] : [];
+    res.json(db.prepare(`
+        SELECT e.*, b.name AS business_name, b.slug AS business_slug
+        FROM enquiries e JOIN businesses b ON b.id=e.business_id
+        ${where} ORDER BY e.created_at DESC LIMIT 300
+    `).all(...params));
+});
+app.put('/api/admin/enquiries/:id/status', requireAdmin, (req, res) => {
+    const { status } = req.body;
+    if (!['new','read','archived'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    db.prepare('UPDATE enquiries SET status=? WHERE id=?').run(status, req.params.id);
+    res.json({ ok: true });
+});
+app.get('/api/owner/enquiries', requireOwner, (req, res) => {
+    res.json(db.prepare('SELECT * FROM enquiries WHERE business_id=? ORDER BY created_at DESC').all(req.business.id));
+});
+
+// Support tickets — a business owner contacting admin for help, distinct from public Reports
+app.post('/api/owner/support', requireOwner, (req, res) => {
+    const { subject, message } = req.body;
+    if (!subject || !subject.trim()) return res.status(400).json({ error: 'Please enter a subject' });
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Please enter a message' });
+    const r = db.prepare('INSERT INTO support_tickets (business_id,owner_email,subject,message) VALUES (?,?,?,?)')
+        .run(req.business.id, req.owner.email, subject.trim(), message.trim());
+    sendMail(process.env.EMAIL_USER, `New support ticket — ${req.business.name}`,
+        `<p><strong>${req.business.name}</strong> (${req.owner.email}) opened a support ticket:</p>
+         <p><strong>${subject}</strong></p><p>${message}</p>
+         <p><a href="${siteUrl()}/admin">Reply in admin panel</a></p>`
+    ).catch(()=>{});
+    res.json({ ok: true, id: r.lastInsertRowid });
+});
+app.get('/api/owner/support', requireOwner, (req, res) => {
+    res.json(db.prepare('SELECT * FROM support_tickets WHERE business_id=? ORDER BY created_at DESC').all(req.business.id));
+});
+app.get('/api/admin/support-tickets', requireAdmin, (req, res) => {
+    const { status } = req.query;
+    const where = status ? 'WHERE t.status=?' : '';
+    const params = status ? [status] : [];
+    res.json(db.prepare(`
+        SELECT t.*, b.name AS business_name
+        FROM support_tickets t JOIN businesses b ON b.id=t.business_id
+        ${where} ORDER BY t.created_at DESC LIMIT 300
+    `).all(...params));
+});
+app.put('/api/admin/support-tickets/:id/reply', requireAdmin, (req, res) => {
+    const { reply } = req.body;
+    if (!reply || !reply.trim()) return res.status(400).json({ error: 'Please enter a reply' });
+    const t = db.prepare('SELECT * FROM support_tickets WHERE id=?').get(req.params.id);
+    if (!t) return res.status(404).json({ error: 'Not found' });
+    db.prepare("UPDATE support_tickets SET reply=?, replied_at=datetime('now'), status='resolved' WHERE id=?").run(reply.trim(), t.id);
+    if (t.owner_email) {
+        sendMail(t.owner_email, `Reply to your support ticket — ${t.subject}`,
+            `<p>You wrote:</p><p><em>${t.message}</em></p><p>Our reply:</p><p>${reply}</p>`
+        ).catch(()=>{});
+    }
+    logAudit('support_ticket.replied', 'support_ticket', t.id, t.subject);
+    res.json({ ok: true });
+});
+
 // Widget data (CORS enabled — called from business websites)
 app.get('/api/widget/:apiKey', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -665,6 +817,7 @@ app.put('/api/admin/reports/:id/status', requireAdmin, (req, res) => {
     const { status } = req.body;
     if (!['open','resolved'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
     db.prepare('UPDATE reports SET status=? WHERE id=?').run(status, req.params.id);
+    logAudit('report.status_changed', 'report', req.params.id, `Status set to ${status}`);
     res.json({ ok: true });
 });
 
@@ -677,6 +830,7 @@ app.post('/api/admin/discounts', requireAdmin, (req, res) => {
     try {
         const r = db.prepare('INSERT INTO discount_codes (code,type,value,expires_at,max_uses) VALUES (?,?,?,?,?)')
             .run(code.trim().toUpperCase(), type, v, expires_at || null, max_uses ? parseInt(max_uses) : null);
+        logAudit('discount.created', 'discount', r.lastInsertRowid, `Code ${code.trim().toUpperCase()}`);
         res.json({ ok: true, id: r.lastInsertRowid });
     } catch(e) {
         if (e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Code already exists' });
@@ -685,8 +839,10 @@ app.post('/api/admin/discounts', requireAdmin, (req, res) => {
 });
 
 app.delete('/api/admin/discounts/:id', requireAdmin, (req, res) => {
+    const dc = db.prepare('SELECT code FROM discount_codes WHERE id=?').get(req.params.id);
     db.prepare('DELETE FROM discount_uses WHERE code_id=?').run(req.params.id);
     db.prepare('DELETE FROM discount_codes WHERE id=?').run(req.params.id);
+    logAudit('discount.deleted', 'discount', req.params.id, dc ? `Code ${dc.code}` : '');
     res.json({ ok: true });
 });
 
@@ -1019,7 +1175,17 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
         pro_count:        db.prepare("SELECT COUNT(*) AS n FROM businesses WHERE plan='pro' AND status='active'").get().n,
         featured_count:   db.prepare("SELECT COUNT(*) AS n FROM businesses WHERE plan='featured' AND status='active'").get().n,
         open_reports:     db.prepare("SELECT COUNT(*) AS n FROM reports WHERE status='open'").get().n,
+        new_enquiries:    db.prepare("SELECT COUNT(*) AS n FROM enquiries WHERE status='new'").get().n,
+        open_tickets:     db.prepare("SELECT COUNT(*) AS n FROM support_tickets WHERE status='open'").get().n,
+        stripe_connected: stripeConfigured(),
+        email_configured: !!process.env.EMAIL_USER,
     });
+});
+
+// Daily snapshots for the Analytics chart — real history only, starts accumulating from
+// whenever this shipped. No fabricated past data.
+app.get('/api/admin/daily-stats', requireAdmin, (req, res) => {
+    res.json(db.prepare('SELECT * FROM daily_stats ORDER BY date ASC LIMIT 90').all());
 });
 
 // Revenue comes straight from Stripe (the payment processor) — no separate bank API needed;
@@ -1057,11 +1223,13 @@ app.get('/api/admin/revenue', requireAdmin, async (req, res) => {
 
 app.get('/api/admin/businesses', requireAdmin, (req, res) => {
     expirePromos();
-    const { status, plan, q } = req.query;
+    const { status, plan, q, featured, verification } = req.query;
     let where = ['1=1'], params = [];
     if (status) { where.push('status=?'); params.push(status); }
     if (plan)   { where.push('plan=?'); params.push(plan); }
     if (q)      { where.push('(name LIKE ? OR email LIKE ? OR area LIKE ?)'); params.push(`%${q}%`,`%${q}%`,`%${q}%`); }
+    if (featured) { where.push("(featured=1 OR plan='featured')"); }
+    if (verification) { where.push("(has_restricted_categories=1 AND restricted_review_status='pending')"); }
     res.json(db.prepare(`SELECT * FROM businesses WHERE ${where.join(' AND ')} ORDER BY created_at DESC`).all(...params));
 });
 
@@ -1143,16 +1311,33 @@ app.put('/api/admin/businesses/:id/status', requireAdmin, (req, res) => {
             ).catch(()=>{});
         }
     }
+    logAudit('business.status_changed', 'business', b.id, `${b.name} → ${status}`);
+    res.json({ ok: true });
+});
+
+// Focused compliance-document review, independent of the general active/pending/suspended
+// status — lets admin approve/reject a restricted category's documents without also having
+// to change (or accidentally leave alone) the listing's overall visibility.
+app.put('/api/admin/businesses/:id/verification', requireAdmin, (req, res) => {
+    const { decision } = req.body;
+    if (!['approved','rejected'].includes(decision)) return res.status(400).json({ error: 'Invalid decision' });
+    const b = db.prepare('SELECT * FROM businesses WHERE id=?').get(req.params.id);
+    if (!b) return res.status(404).json({ error: 'Not found' });
+    if (!b.has_restricted_categories) return res.status(400).json({ error: 'This business has no restricted categories to verify' });
+    db.prepare('UPDATE businesses SET restricted_review_status=? WHERE id=?').run(decision, b.id);
+    logAudit('business.verification_decided', 'business', b.id, `${b.name} → ${decision}`);
     res.json({ ok: true });
 });
 
 app.put('/api/admin/businesses/:id/plan', requireAdmin, (req, res) => {
     const { plan } = req.body;
     if (!['starter','pro','featured'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
+    const b = db.prepare('SELECT name FROM businesses WHERE id=?').get(req.params.id);
     // A direct plan change is a deliberate override — clear any running promo so it can't later revert this.
     db.prepare('UPDATE businesses SET plan=?, featured=?, promo_expires_at=NULL, pre_promo_plan=NULL WHERE id=?')
         .run(plan, plan==='featured'?1:0, req.params.id);
     updateBusinessStats(req.params.id);
+    logAudit('business.plan_changed', 'business', req.params.id, `${b?.name||''} → ${plan}`);
     res.json({ ok: true });
 });
 
@@ -1170,6 +1355,7 @@ app.put('/api/admin/businesses/:id/promo', requireAdmin, (req, res) => {
     db.prepare(`UPDATE businesses SET plan=?, featured=?, pre_promo_plan=?, promo_expires_at=datetime('now', ?) WHERE id=?`)
         .run(plan, plan === 'featured' ? 1 : 0, basePlan, `+${d} days`, b.id);
     updateBusinessStats(b.id);
+    logAudit('business.promo_applied', 'business', b.id, `${b.name} → ${plan} for ${d} day${d==1?'':'s'}`);
     res.json({ ok: true });
 });
 
@@ -1181,13 +1367,16 @@ app.put('/api/admin/businesses/:id/promo/cancel', requireAdmin, (req, res) => {
     db.prepare('UPDATE businesses SET plan=?, featured=?, promo_expires_at=NULL, pre_promo_plan=NULL WHERE id=?')
         .run(revertPlan, revertPlan === 'featured' ? 1 : 0, b.id);
     updateBusinessStats(b.id);
+    logAudit('business.promo_cancelled', 'business', b.id, `${b.name} reverted to ${revertPlan}`);
     res.json({ ok: true });
 });
 
 app.delete('/api/admin/businesses/:id', requireAdmin, (req, res) => {
+    const b = db.prepare('SELECT name FROM businesses WHERE id=?').get(req.params.id);
     db.prepare('DELETE FROM reviews WHERE business_id=?').run(req.params.id);
     db.prepare('DELETE FROM business_owners WHERE business_id=?').run(req.params.id);
     db.prepare('DELETE FROM businesses WHERE id=?').run(req.params.id);
+    logAudit('business.deleted', 'business', req.params.id, b?.name || '');
     res.json({ ok: true });
 });
 
@@ -1209,6 +1398,7 @@ app.put('/api/admin/reviews/:id/status', requireAdmin, (req, res) => {
     if (!r) return res.status(404).json({ error: 'Not found' });
     db.prepare('UPDATE reviews SET status=? WHERE id=?').run(status, r.id);
     updateBusinessStats(r.business_id);
+    logAudit('review.status_changed', 'review', r.id, `By ${r.reviewer_name || 'anonymous'} → ${status}`);
     res.json({ ok: true });
 });
 
@@ -1241,6 +1431,7 @@ app.post('/api/admin/settings', requireAdmin, (req, res) => {
     // Secrets only overwrite when a real new value is sent — leaving the field blank keeps the existing one
     if (req.body.stripe_secret_key) stmt.run('stripe_secret_key', req.body.stripe_secret_key.trim());
     if (req.body.stripe_webhook_secret) stmt.run('stripe_webhook_secret', req.body.stripe_webhook_secret.trim());
+    logAudit('settings.updated', 'settings', null, '');
     res.json({ ok: true });
 });
 
@@ -1294,6 +1485,7 @@ app.post('/api/admin/categories', requireAdmin, (req, res) => {
                  req.body.seo_description || defaults.seo_description,
                  req.body.description || '');
     } catch { return res.status(409).json({ error: 'That category already exists' }); }
+    logAudit('category.created', 'category', null, name);
     res.json({ ok: true });
 });
 
@@ -1327,6 +1519,7 @@ app.put('/api/admin/categories/:id', requireAdmin, (req, res) => {
                  req.body.description ?? cat.description,
                  cat.id);
     } catch { return res.status(409).json({ error: 'That category already exists' }); }
+    logAudit('category.updated', 'category', cat.id, name);
     res.json({ ok: true });
 });
 
@@ -1349,7 +1542,93 @@ app.delete('/api/admin/categories/:id', requireAdmin, (req, res) => {
         .get(cat.name, `%"${cat.name}"%`).n;
     if (inUse) return res.status(409).json({ error: `${inUse} business(es) still use this category — recategorise them first` });
     db.prepare('DELETE FROM categories WHERE id=?').run(cat.id);
+    logAudit('category.deleted', 'category', cat.id, cat.name);
     res.json({ ok: true });
+});
+
+// ── Locations (admin) ────────────────────────────────────────────────────────
+// Admin-managed canonical list of areas. Not yet wired into the public signup form or
+// directory filters (both free-text `area` today) — that's a deliberate follow-up once
+// there's a URL/SEO strategy for location pages, not done as part of this build.
+function uniqueLocationSlug(desired, excludeId) {
+    let base = slugify(desired) || 'location', slug = base, n = 2;
+    while (true) {
+        const clash = excludeId
+            ? db.prepare('SELECT 1 FROM locations WHERE slug=? AND id!=?').get(slug, excludeId)
+            : db.prepare('SELECT 1 FROM locations WHERE slug=?').get(slug);
+        if (!clash) return slug;
+        slug = `${base}-${n++}`;
+    }
+}
+
+app.get('/api/admin/locations', requireAdmin, (req, res) => {
+    const { q } = req.query;
+    const where = q ? 'WHERE name LIKE ?' : '';
+    const params = q ? [`%${q}%`] : [];
+    res.json(db.prepare(`SELECT * FROM locations ${where} ORDER BY sort_order, id`).all(...params));
+});
+
+app.post('/api/admin/locations', requireAdmin, (req, res) => {
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const slug = uniqueLocationSlug(req.body.slug || name);
+    const maxOrder = db.prepare('SELECT MAX(sort_order) AS m FROM locations').get().m;
+    try {
+        db.prepare(`INSERT INTO locations (name, slug, sort_order, status, description, seo_title, seo_description)
+            VALUES (?,?,?,?,?,?,?)`)
+            .run(name, slug, (maxOrder ?? -1) + 1, req.body.status || 'active',
+                 req.body.description || '', req.body.seo_title || '', req.body.seo_description || '');
+    } catch { return res.status(409).json({ error: 'That location already exists' }); }
+    logAudit('location.created', 'location', null, name);
+    res.json({ ok: true });
+});
+
+app.put('/api/admin/locations/:id', requireAdmin, (req, res) => {
+    const loc = db.prepare('SELECT * FROM locations WHERE id=?').get(req.params.id);
+    if (!loc) return res.status(404).json({ error: 'Not found' });
+    const name = (req.body.name || loc.name).trim();
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const slug = req.body.slug && req.body.slug.trim() ? uniqueLocationSlug(req.body.slug, loc.id) : loc.slug;
+    const sort_order = req.body.sort_order !== undefined && req.body.sort_order !== '' ? parseInt(req.body.sort_order) : loc.sort_order;
+    try {
+        db.prepare(`UPDATE locations SET name=?, slug=?, sort_order=?, status=?, description=?, seo_title=?, seo_description=? WHERE id=?`)
+            .run(name, slug, sort_order, req.body.status || loc.status,
+                 req.body.description ?? loc.description, req.body.seo_title ?? loc.seo_title,
+                 req.body.seo_description ?? loc.seo_description, loc.id);
+    } catch { return res.status(409).json({ error: 'That location already exists' }); }
+    logAudit('location.updated', 'location', loc.id, name);
+    res.json({ ok: true });
+});
+
+app.put('/api/admin/locations/:id/move', requireAdmin, (req, res) => {
+    const locs = db.prepare('SELECT * FROM locations ORDER BY sort_order, id').all();
+    const idx = locs.findIndex(l => l.id === parseInt(req.params.id));
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    const swapWith = req.body.direction === 'up' ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= locs.length) return res.json({ ok: true });
+    const a = locs[idx], b = locs[swapWith];
+    db.prepare('UPDATE locations SET sort_order=? WHERE id=?').run(b.sort_order, a.id);
+    db.prepare('UPDATE locations SET sort_order=? WHERE id=?').run(a.sort_order, b.id);
+    res.json({ ok: true });
+});
+
+app.delete('/api/admin/locations/:id', requireAdmin, (req, res) => {
+    const loc = db.prepare('SELECT * FROM locations WHERE id=?').get(req.params.id);
+    if (!loc) return res.status(404).json({ error: 'Not found' });
+    db.prepare('DELETE FROM locations WHERE id=?').run(loc.id);
+    logAudit('location.deleted', 'location', loc.id, loc.name);
+    res.json({ ok: true });
+});
+
+// ── Audit Logs (admin) ───────────────────────────────────────────────────────
+// Actor is always "Admin" — single shared login, no named staff accounts yet.
+app.get('/api/admin/audit-logs', requireAdmin, (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const perPage = 50;
+    const total = db.prepare('SELECT COUNT(*) AS n FROM audit_logs').get().n;
+    const rows = db.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?')
+        .all(perPage, (page - 1) * perPage);
+    res.json({ rows, total, page, pages: Math.max(1, Math.ceil(total / perPage)) });
 });
 
 // ── Stripe webhook ───────────────────────────────────────────────────────────
@@ -1465,6 +1744,9 @@ app.use((req, res) => res.status(404).sendFile(path.join(__dirname, 'index.html'
 
 expirePromos();
 setInterval(expirePromos, 15 * 60 * 1000);
+
+snapshotDailyStats();
+setInterval(snapshotDailyStats, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`\n  Monasite → http://localhost:${PORT}`);

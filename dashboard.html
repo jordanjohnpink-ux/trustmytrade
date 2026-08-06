@@ -36,6 +36,8 @@
         <div id="bizNameSb" style="padding:0 1.2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:0.06em"></div>
         <button class="dash-nav-item active" id="nav-overview"  onclick="showTab('overview')">📊 Overview</button>
         <button class="dash-nav-item" id="nav-reviews"   onclick="showTab('reviews')">⭐ Reviews</button>
+        <button class="dash-nav-item" id="nav-enquiries" onclick="showTab('enquiries')">✉️ Enquiries</button>
+        <button class="dash-nav-item" id="nav-support"   onclick="showTab('support')">🎫 Support</button>
         <button class="dash-nav-item" id="nav-profile"   onclick="showTab('profile')">✏️ Edit Profile</button>
         <button class="dash-nav-item" id="nav-widget"    onclick="showTab('widget')">🔌 Widget & Badge</button>
         <button class="dash-nav-item" id="nav-analytics" onclick="showTab('analytics')">📈 Analytics</button>
@@ -113,7 +115,7 @@ function showTab(tab) {
     document.querySelectorAll('.dash-nav-item').forEach(el => el.classList.remove('active'));
     const navEl = document.getElementById('nav-'+tab);
     if (navEl) navEl.classList.add('active');
-    const loaders = { overview: loadOverview, reviews: loadReviews, profile: loadProfile, widget: loadWidget, analytics: loadAnalytics, billing: loadBilling };
+    const loaders = { overview: loadOverview, reviews: loadReviews, enquiries: loadEnquiries, support: loadSupport, profile: loadProfile, widget: loadWidget, analytics: loadAnalytics, billing: loadBilling };
     (loaders[tab] || loadOverview)().catch(e => {
         document.getElementById('dashBody').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`;
     });
@@ -208,6 +210,59 @@ async function submitReply(id) {
         toast('Reply posted');
         loadReviews();
     } catch(e) { toast(e.message, true); }
+}
+
+async function loadEnquiries() {
+    const rows = await oapi('/api/owner/enquiries');
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Enquiries</h2></div>
+        <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1rem">Messages sent to you directly through your listing.</p>
+        <div class="card card-padded">
+            ${rows.length ? rows.map(e => `
+                <div style="padding:1rem 0;border-bottom:1px solid var(--border)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.3rem">
+                        <span style="font-weight:600;font-size:0.9rem">${esc(e.name||'Anonymous')}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(e.created_at)}</span>
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.3rem">${e.email?esc(e.email):''}${e.phone?' · '+esc(e.phone):''}</div>
+                    <div style="font-size:0.875rem;color:var(--text-mid)">${esc(e.message)}</div>
+                </div>`).join('') : '<div class="empty">No enquiries yet.</div>'}
+        </div>`;
+}
+
+async function loadSupport() {
+    const rows = await oapi('/api/owner/support');
+    document.getElementById('dashBody').innerHTML = `
+        <div class="admin-head"><h2 class="admin-title">Support</h2></div>
+        <div class="card card-padded" style="max-width:640px;margin-bottom:1.5rem">
+            <h4 style="margin-bottom:1rem;font-size:0.95rem">New Ticket</h4>
+            <div class="form-group"><label>Subject</label><input id="tk-subject" placeholder="e.g. Question about my plan"></div>
+            <div class="form-group"><label>Message</label><textarea id="tk-message" rows="4"></textarea></div>
+            <button class="btn btn-navy" onclick="submitTicket()">Send</button>
+        </div>
+        <div class="card card-padded">
+            ${rows.length ? rows.map(t => `
+                <div style="padding:1rem 0;border-bottom:1px solid var(--border)">
+                    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem">
+                        <span style="font-weight:600;font-size:0.9rem">${esc(t.subject)}</span>
+                        <span class="badge ${t.status==='open'?'badge-pending':'badge-verified'}">${t.status}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(t.created_at)}</span>
+                    </div>
+                    <div style="font-size:0.875rem;color:var(--text-mid);margin-bottom:0.4rem">${esc(t.message)}</div>
+                    ${t.reply?`<div style="background:var(--off-white);border-left:3px solid var(--gold);padding:0.5rem 0.75rem;border-radius:0 6px 6px 0;font-size:0.8rem;color:var(--text-mid)"><strong style="display:block;font-size:0.72rem;color:var(--navy);margin-bottom:0.15rem">Reply</strong>${esc(t.reply)}</div>`:'<div style="font-size:0.78rem;color:var(--text-muted)">Awaiting a reply.</div>'}
+                </div>`).join('') : '<div class="empty">No support tickets yet.</div>'}
+        </div>`;
+}
+
+async function submitTicket() {
+    const subject = document.getElementById('tk-subject').value.trim();
+    const message = document.getElementById('tk-message').value.trim();
+    if (!subject || !message) return toast('Please fill in both fields', true);
+    try {
+        await oapi('/api/owner/support', 'POST', { subject, message });
+        toast('Ticket sent');
+        loadSupport();
+    } catch(e) { toast(e.message || 'Failed to send', true); }
 }
 
 let catMetaByName = {};
