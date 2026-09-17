@@ -12,7 +12,7 @@
 
         /* ── Hero ─────────────────────────────────────────────────────────── */
         .hiw-hero {
-            background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%);
+            background: linear-gradient(160deg, #FBF8F2 0%, #F5F3EE 60%, #F0EEE8 100%);
             padding: 5rem 1.5rem 5rem;
             text-align: center;
             position: relative;
@@ -22,7 +22,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at 50% 70%, rgba(201,168,76,0.18) 0%, transparent 62%);
+            background: radial-gradient(ellipse at 50% 70%, rgba(201,168,76,0.1) 0%, transparent 62%);
             pointer-events: none;
         }
         /* Subtle PCB grid in hero background */
@@ -31,8 +31,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+                linear-gradient(rgba(201,168,76,0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201,168,76,0.08) 1px, transparent 1px);
             background-size: 40px 40px;
             pointer-events: none;
         }
@@ -41,12 +41,12 @@
         .hiw-hero h1 {
             font-family: 'Playfair Display', serif;
             font-size: clamp(2.2rem, 5vw, 3.4rem);
-            color: #fff;
+            color: var(--text);
             margin-bottom: 1rem;
             line-height: 1.2;
         }
         .hiw-hero p {
-            color: rgba(255,255,255,0.6);
+            color: var(--text-mid);
             font-size: 1.05rem;
             max-width: 520px;
             margin: 0 auto;
@@ -357,7 +357,7 @@
 
         /* ── CTA ─────────────────────────────────────────────────────────── */
         .hiw-cta {
-            background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%);
+            background: var(--light);
             padding: 5rem 1.5rem;
             text-align: center;
             position: relative;
@@ -367,7 +367,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.18) 0%, transparent 65%);
+            background: radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.12) 0%, transparent 65%);
             pointer-events: none;
         }
         .hiw-cta::after {
@@ -375,8 +375,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+                linear-gradient(rgba(201,168,76,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201,168,76,0.06) 1px, transparent 1px);
             background-size: 40px 40px;
             pointer-events: none;
         }
@@ -384,11 +384,11 @@
         .hiw-cta h2 {
             font-family: 'Playfair Display', serif;
             font-size: clamp(1.8rem, 4vw, 2.8rem);
-            color: #fff;
+            color: var(--text);
             margin-bottom: 0.75rem;
         }
         .hiw-cta p {
-            color: rgba(255,255,255,0.6);
+            color: var(--text-mid);
             font-size: 1rem;
             max-width: 440px;
             margin: 0 auto 2rem;
@@ -563,7 +563,7 @@
         <p>Join the tradespeople already growing their business through verified reputation.</p>
         <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
             <a href="/signup" class="btn btn-primary" style="padding:0.85rem 2.2rem;font-size:1rem">List Your Business →</a>
-            <a href="/directory" class="btn btn-outline" style="padding:0.85rem 2.2rem;font-size:1rem;border-color:rgba(255,255,255,0.25);color:#fff">Browse Directory</a>
+            <a href="/directory" class="btn btn-outline" style="padding:0.85rem 2.2rem;font-size:1rem">Browse Directory</a>
         </div>
     </div>
 </section>

@@ -39,7 +39,7 @@
             position: relative; background: #fff; display: flex; flex-direction: column;
         }
         .plan-card:hover { border-color: rgba(201,168,76,0.5); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
-        .plan-card.selected { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(27,42,74,0.1), 0 6px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .plan-card.selected { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(42,40,35,0.1), 0 6px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
         .plan-card.popular { border-color: var(--gold); }
         .plan-card.popular.selected { border-color: var(--navy); }
         .plan-card input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
@@ -75,14 +75,15 @@
 
         /* Honest note */
         .honest-note {
-            background: linear-gradient(135deg, #0c1726, #1B2A4A);
+            background: rgba(201,168,76,0.08);
+            border: 1px solid rgba(201,168,76,0.25);
             border-radius: 10px; padding: 1rem 1.2rem;
             display: flex; align-items: flex-start; gap: 0.75rem;
             margin-bottom: 1.75rem;
         }
         .honest-note-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
-        .honest-note p { font-size: 0.8rem; color: rgba(255,255,255,0.7); line-height: 1.55; margin: 0; }
-        .honest-note strong { color: rgba(201,168,76,0.9); }
+        .honest-note p { font-size: 0.8rem; color: var(--text-mid); line-height: 1.55; margin: 0; }
+        .honest-note strong { color: var(--gold-dk); }
     </style>
 </head>
 <body>
@@ -92,7 +93,7 @@
         <div class="nav-links">
             <a href="/directory">Directory</a>
             <a href="/categories">Categories</a>
-            <a href="/signup" style="color:#fff">List Your Business</a>
+            <a href="/signup" style="color:var(--gold-dk);font-weight:600">List Your Business</a>
             <a href="/how-it-works">How It Works</a>
         </div>
     </div>
@@ -297,7 +298,7 @@
 
     <!-- ── Success ── -->
     <div class="step-panel card card-padded" id="stepDone" style="text-align:center;padding:3rem 2rem">
-        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--navy),#2a3f6e);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:1.6rem">✓</div>
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--navy),var(--navy-2));border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:1.6rem">✓</div>
         <h2 style="margin-bottom:0.5rem;color:var(--navy)">Application Submitted!</h2>
         <p style="color:var(--text-muted);margin-bottom:1.5rem;max-width:400px;margin-left:auto;margin-right:auto">We'll verify your business details and be in touch within 1–2 business days. You'll receive an email once your listing is live.</p>
         <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">

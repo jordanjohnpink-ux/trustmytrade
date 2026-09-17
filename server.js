@@ -730,7 +730,7 @@ app.get('/api/badge/:apiKey.svg', (req, res) => {
     const stars = Math.round(b.avg_rating || 0);
     const starStr = '★'.repeat(stars) + '☆'.repeat(5 - stars);
     const gold = '#C9A84C';
-    const navy = '#1B2A4A';
+    const navy = '#2A2823';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80" viewBox="0 0 200 80">
   <rect width="200" height="80" rx="6" fill="${navy}"/>
   <rect x="1" y="1" width="198" height="78" rx="5" fill="none" stroke="${gold}" stroke-width="1.5"/>

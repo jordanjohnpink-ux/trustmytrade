@@ -9,22 +9,22 @@
     <link rel="stylesheet" href="styles.css">
     <script src="/settings.js"></script>
     <style>
-        .hero-bg { background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%); }
-        .hero-bg::after { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 65% 45%, rgba(201,168,76,0.13) 0%, transparent 52%); pointer-events:none; }
+        .hero-bg { background: linear-gradient(160deg, #FBF8F2 0%, #F5F3EE 60%, #F0EEE8 100%); }
+        .hero-bg::after { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 65% 45%, rgba(201,168,76,0.08) 0%, transparent 52%); pointer-events:none; }
         .stats-bar {
-            background: linear-gradient(90deg, #0c1726, #1B2A4A, #0c1726);
-            border-top: 1px solid rgba(201,168,76,0.15);
-            border-bottom: 1px solid rgba(201,168,76,0.1);
+            background: var(--light);
+            border-top: 1px solid rgba(201,168,76,0.2);
+            border-bottom: 1px solid rgba(201,168,76,0.15);
             padding: 1.75rem 1.5rem;
         }
         .stats-bar-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: center; align-items: center; gap: 0; flex-wrap: wrap; }
         .stat-item { text-align: center; padding: 0 3rem; }
-        .stat-item + .stat-item { border-left: 1px solid rgba(255,255,255,0.08); }
-        .stat-item .val { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--gold); font-weight: 700; line-height: 1; }
-        .stat-item .lbl { font-size: 0.68rem; color: rgba(255,255,255,0.42); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 0.35rem; }
+        .stat-item + .stat-item { border-left: 1px solid var(--border); }
+        .stat-item .val { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--gold-dk); font-weight: 700; line-height: 1; }
+        .stat-item .lbl { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 0.35rem; }
         .featured-tag { background: var(--gold); color: var(--navy); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 0.18rem 0.55rem; border-radius: 3px; }
-        .cta-section { background: linear-gradient(145deg, #06101e 0%, #1B2A4A 55%, #0f2040 100%); position: relative; overflow: hidden; }
-        .cta-section::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 30% 50%, rgba(201,168,76,0.16) 0%, transparent 62%); }
+        .cta-section { background: var(--light); position: relative; overflow: hidden; }
+        .cta-section::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 30% 50%, rgba(201,168,76,0.12) 0%, transparent 62%); }
         .cta-gold-bar { width: 44px; height: 2px; background: var(--gold); border-radius: 2px; margin: 0 auto 1.5rem; }
     </style>
 </head>
@@ -138,8 +138,8 @@
     <div class="container" style="text-align:center;position:relative">
         <div class="cta-gold-bar"></div>
         <span class="section-label">Ready?</span>
-        <h2 class="section-title" style="color:#fff;margin-bottom:0.75rem">Join the directory trusted<br>by local customers</h2>
-        <p style="color:rgba(255,255,255,0.55);margin-bottom:2.25rem;font-weight:300;font-size:1.02rem">Get vetted, collect reviews, and grow your reputation with <span data-brand>Monasite</span>.</p>
+        <h2 class="section-title" style="color:var(--text);margin-bottom:0.75rem">Join the directory trusted<br>by local customers</h2>
+        <p style="color:var(--text-mid);margin-bottom:2.25rem;font-weight:300;font-size:1.02rem">Get vetted, collect reviews, and grow your reputation with <span data-brand>Monasite</span>.</p>
         <a href="/signup" class="btn btn-primary btn-lg">List My Business →</a>
     </div>
 </section>
@@ -216,7 +216,7 @@ async function loadHome() {
         // Category quick links
         const cats = ['Builder','Electrician','Plumber','Roofer','Landscaper','Painter & Decorator'];
         document.getElementById('catQuickLinks').innerHTML = cats.map(c=>
-            `<a href="/directory?category=${encodeURIComponent(c)}" style="font-size:0.78rem;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.07);padding:0.3rem 0.75rem;border-radius:20px;border:1px solid rgba(255,255,255,0.1)">${c}</a>`
+            `<a href="/directory?category=${encodeURIComponent(c)}" style="font-size:0.78rem;color:var(--text-mid);background:#fff;padding:0.3rem 0.75rem;border-radius:20px;border:1px solid var(--border)">${c}</a>`
         ).join('');
 
         // Area dropdown

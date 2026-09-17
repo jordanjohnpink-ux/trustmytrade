@@ -150,7 +150,7 @@ async function loadDash() {
     document.getElementById('adminBody').innerHTML = `
         <div class="admin-head"><h2 class="admin-title">Dashboard</h2></div>
         <div class="stat-grid">
-            ${statCard(s.active, 'Live Businesses', '🏢', 'rgba(27,42,74,0.08)', 'var(--navy)')}
+            ${statCard(s.active, 'Live Businesses', '🏢', 'rgba(42,40,35,0.08)', 'var(--navy)')}
             ${statCard(s.pending, 'Awaiting Vetting', '⏳', s.pending?'#fef3c7':'var(--light)', s.pending?'#b45309':'var(--text-mid)', s.pending)}
             ${statCard(s.pending_reviews, 'Pending Reviews', '⭐', s.pending_reviews?'#fef3c7':'var(--light)', s.pending_reviews?'#b45309':'var(--text-mid)', s.pending_reviews)}
             ${statCard(s.total_reviews, 'Published Reviews', '✅', '#dcfce7', '#166534')}
@@ -159,7 +159,7 @@ async function loadDash() {
             ${statCard(s.starter_count, 'Starter Plan', '📦', 'var(--light)', 'var(--text-mid)')}
             ${statCard(s.pro_count, 'Pro Plan', '💎', '#ede9fe', '#6d28d9')}
             ${statCard(s.featured_count, 'Featured Plan', '👑', 'rgba(201,168,76,0.16)', 'var(--gold-dk)')}
-            ${statCard(s.total_businesses, 'Total Businesses', '📊', 'rgba(27,42,74,0.08)', 'var(--navy)')}
+            ${statCard(s.total_businesses, 'Total Businesses', '📊', 'rgba(42,40,35,0.08)', 'var(--navy)')}
         </div>
         <div id="revenuePanel" style="margin-bottom:1.2rem"></div>
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.2rem">

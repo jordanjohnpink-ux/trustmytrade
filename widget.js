@@ -20,16 +20,16 @@
                 <div style="display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-family:'Inter',system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
                     <div style="display:flex;flex-direction:column;align-items:center;line-height:1">
                         <span style="color:#C9A84C;font-size:1rem;letter-spacing:1px">${starStr}</span>
-                        <span style="font-size:0.65rem;color:#9CA3AF;margin-top:2px">${b.review_count || 0} review${b.review_count !== 1 ? 's' : ''}</span>
+                        <span style="font-size:0.65rem;color:#8B857C;margin-top:2px">${b.review_count || 0} review${b.review_count !== 1 ? 's' : ''}</span>
                     </div>
                     <div style="width:1px;height:32px;background:#e5e7eb"></div>
                     <div>
-                        <div style="font-size:0.78rem;font-weight:700;color:#1B2A4A;margin-bottom:2px">${escHtml(b.name)}</div>
+                        <div style="font-size:0.78rem;font-weight:700;color:#2A2823;margin-bottom:2px">${escHtml(b.name)}</div>
                         ${isVerified ? `<div style="font-size:0.62rem;color:#059669;font-weight:600">✓ Verified on Monasite</div>` : ''}
                     </div>
                     <div style="width:1px;height:32px;background:#e5e7eb"></div>
                     <a href="${escHtml(b.profile_url)}" target="_blank" rel="noopener"
-                       style="font-size:0.72rem;font-weight:600;color:#1B2A4A;text-decoration:none;white-space:nowrap;background:#f3f4f6;padding:6px 10px;border-radius:6px;border:1px solid #e5e7eb">
+                       style="font-size:0.72rem;font-weight:600;color:#2A2823;text-decoration:none;white-space:nowrap;background:#f3f4f6;padding:6px 10px;border-radius:6px;border:1px solid #e5e7eb">
                         Leave a Review →
                     </a>
                 </div>`;
