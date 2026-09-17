@@ -29,7 +29,7 @@
 body { font-family: 'Inter', sans-serif; color: var(--text); background: var(--off-white); line-height: 1.6; }
 
 /* ── Typography ── */
-h1,h2,h3,h4 { font-family: 'Playfair Display', serif; line-height: 1.25; }
+h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; line-height: 1.25; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
 
@@ -50,7 +50,7 @@ img { max-width: 100%; display: block; }
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .navbar-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 66px; }
-.nav-brand { font-family: 'Playfair Display', serif; color: var(--text); font-size: 1.4rem; letter-spacing: 0.02em; }
+.nav-brand { font-family: 'Space Grotesk', sans-serif; color: var(--text); font-size: 1.4rem; letter-spacing: 0.02em; }
 .nav-brand span { color: var(--gold); }
 .nav-links { display: flex; align-items: center; gap: 1.8rem; }
 .nav-links a { color: var(--text-mid); font-size: 0.875rem; font-weight: 500; transition: color 0.15s; letter-spacing: 0.01em; }
@@ -152,7 +152,7 @@ img { max-width: 100%; display: block; }
 .plan-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .plan-card.popular { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(201,168,76,0.1), 0 8px 32px rgba(0,0,0,0.1); }
 .plan-card .plan-name { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.6rem; }
-.plan-card .plan-price { font-family: 'Playfair Display', serif; font-size: 3rem; color: var(--navy); margin-bottom: 0.25rem; line-height: 1; }
+.plan-card .plan-price { font-family: 'Space Grotesk', sans-serif; font-size: 3rem; color: var(--navy); margin-bottom: 0.25rem; line-height: 1; }
 .plan-card .plan-price span { font-size: 0.95rem; font-family: 'Inter', sans-serif; font-weight: 400; color: var(--text-muted); }
 .plan-card ul { list-style: none; text-align: left; margin: 1.4rem 0 1.8rem; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; }
 .plan-card ul li { font-size: 0.86rem; display: flex; gap: 0.55rem; line-height: 1.5; }
@@ -164,7 +164,7 @@ img { max-width: 100%; display: block; }
 /* ── Footer ── */
 .footer { background: var(--light); color: var(--text-mid); padding: 3.5rem 1.5rem; margin-top: auto; border-top: 1px solid rgba(201,168,76,0.25); }
 .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.82rem; }
-.footer-brand { font-family: 'Playfair Display', serif; color: var(--text); font-size: 1.15rem; }
+.footer-brand { font-family: 'Space Grotesk', sans-serif; color: var(--text); font-size: 1.15rem; }
 .footer-brand span { color: var(--gold); }
 .footer-links { display: flex; gap: 1.4rem; }
 .footer-links a:hover { color: var(--text); }
@@ -197,7 +197,7 @@ img { max-width: 100%; display: block; }
 /* ── Sidebar admin layout ── */
 .admin-shell { display: flex; min-height: 100vh; }
 .admin-sidebar { width: 240px; background: var(--navy-deep); flex-shrink: 0; display: flex; flex-direction: column; padding: 1.5rem 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.admin-sidebar-brand { padding: 0 1.4rem 1.5rem; font-family: 'Playfair Display', serif; color: #fff; font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 1rem; }
+.admin-sidebar-brand { padding: 0 1.4rem 1.5rem; font-family: 'Space Grotesk', sans-serif; color: #fff; font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 1rem; }
 .admin-sidebar-brand span { color: var(--gold); }
 .admin-nav-group { display: flex; flex-direction: column; gap: 0.1rem; padding: 0 0.7rem; }
 .admin-nav-group + .admin-nav-group { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.07); }
@@ -222,7 +222,7 @@ img { max-width: 100%; display: block; }
 
 .admin-body { flex: 1; padding: 1.75rem 2rem; overflow-y: auto; background: var(--off-white); }
 .admin-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
-.admin-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; }
+.admin-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; }
 
 /* ── Stat grid ── */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
