@@ -15,7 +15,7 @@
     // Navbar brand — replace with logo image when one is uploaded, else use site name text
     document.querySelectorAll('.nav-brand').forEach(function (el) {
         if (SITE.logo) {
-            el.innerHTML = '<img src="' + esc(SITE.logo) + '" alt="' + esc(n) + '" style="height:38px;max-width:180px;object-fit:contain;display:block">';
+            el.innerHTML = '<img src="' + esc(SITE.logo) + '" alt="' + esc(n) + '" style="height:56px;max-width:280px;object-fit:contain;display:block">';
         } else {
             el.textContent = n;
         }
