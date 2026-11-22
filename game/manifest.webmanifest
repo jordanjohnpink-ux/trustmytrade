@@ -1,0 +1,25 @@
+{
+  "id": "/game/",
+  "name": "Gecko Garden",
+  "short_name": "Gecko Garden",
+  "description": "An ad-free gecko puzzle adventure with 60 gardens to explore.",
+  "start_url": "/game/",
+  "scope": "/game/",
+  "display": "standalone",
+  "background_color": "#153f34",
+  "theme_color": "#153f34",
+  "icons": [
+    {
+      "src": "gecko-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "gecko-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
